@@ -181,7 +181,7 @@ npm run dev
 
 ## License
 
-This project is licensed under the MIT License unless otherwise specified.
+This project is licensed under the Apache 2.0 License unless otherwise specified.
 
 ---
 
