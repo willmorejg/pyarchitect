@@ -38,7 +38,7 @@ jobs:
                   echo "BUMP_PART=${{ github.event.inputs.version_part || 'major' }}" >> $GITHUB_ENV
 
             - name: Bump version
-              run: bumpver update --${{ env.BUMP_PART }}
+              run: bumpver update --${{ env.BUMP_PART }} --no-commit
 
             - name: Commit bumped version
               run: |
