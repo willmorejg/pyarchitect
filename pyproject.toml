@@ -40,7 +40,7 @@ target-version = "py312"
 # Exclude specific directories
 exclude = [
     ".bzr",
-    ".direnv", 
+    ".direnv",
     ".eggs",
     ".git",
     ".venv",
