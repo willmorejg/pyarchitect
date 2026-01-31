@@ -1,6 +1,6 @@
 [project]
 name = "pyarchitect"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -19,3 +19,11 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.14.14",
 ]
+
+[tool.bumpver]
+current_version = "0.1.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+tag_message = "v{new_version}"
+tag_scope = "default" 
+"pyproject.toml" = ['current_version = "{version}"']
