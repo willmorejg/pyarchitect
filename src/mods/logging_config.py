@@ -49,14 +49,6 @@ class LoggingConfig:
             structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.TimeStamper(fmt="iso", utc=False),
             structlog.processors.EventRenamer("message"),
-            structlog.processors.CallsiteParameterAdder(
-                [
-                    structlog.processors.CallsiteParameter.MODULE,
-                    structlog.processors.CallsiteParameter.FILENAME,
-                    structlog.processors.CallsiteParameter.LINENO,
-                    structlog.processors.CallsiteParameter.FUNC_NAME,
-                ],
-            ),
             structlog.processors.StackInfoRenderer(),
             structlog.processors.format_exc_info,
             structlog.processors.UnicodeDecoder(),
@@ -78,8 +70,11 @@ class LoggingConfig:
             processor=json_renderer,
             foreign_pre_chain=shared_processors,
         )
+        cwd = os.getcwd()
+        logs_dir = os.path.join(cwd, "logs")
+        os.makedirs(logs_dir, exist_ok=True)
         file_handler = logging.FileHandler(
-            os.path.join(os.getcwd(), "logs", "app.log"), mode="a"
+            os.path.join(logs_dir, "app.log"), mode="a"
         )
         file_handler.setFormatter(json_formatter)
 
