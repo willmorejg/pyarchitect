@@ -35,7 +35,7 @@ jobs:
                   python-version: "3.12"
 
             - name: Install bumpver
-              run: pip install bumpver
+              run: pip install "bumpver>=0.7,<1.0"
 
             - name: Determine bump type
               id: bump
