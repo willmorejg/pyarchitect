@@ -1,10 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "pyarchitect"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.12.5",
+]
+
+[tool.hatch.version]
+path = "src/mods/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mods"]
 
 [dependency-groups]
 dev = [
@@ -19,3 +31,55 @@ dev = [
     "pytest-cov>=7.0.0",
     "ruff>=0.14.14",
 ]
+
+[tool.ruff]
+# Set line length
+line-length = 88
+# Set minimum Python version
+target-version = "py312"
+# Exclude specific directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules",
+]
+[tool.ruff.lint]
+# Enable specific rule sets
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # Pyflakes
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "I",    # isort
+]
+# Ignore specific rules
+ignore = [
+    "E501",  # line too long
+    "B008",  # do not perform function calls in argument defaults
+]
+# Allow fixing specific rules
+fixable = ["ALL"]
+unfixable = []
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+# Indent with spaces
+indent-style = "space"
+# Use trailing commas
+skip-magic-trailing-comma = false
+# Auto-detect line ending
+line-ending = "auto"
+
+[tool.bumpver]
+current_version = "0.1.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+tag_message = "v{new_version}"
+tag_scope = "default"
+"pyproject.toml" = ['current_version = "{version}"']
+"src/mods/__init__.py" = ['__version__ = "{version}"']

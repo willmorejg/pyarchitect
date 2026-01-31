@@ -1,0 +1,51 @@
+name: Bump Version on Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            version_part:
+                description: "Which part of the version to bump?"
+                required: true
+                default: "minor"
+                type: choice
+                options:
+                    - major
+                    - minor
+                    - patch
+    release:
+        types: [published]
+
+jobs:
+    bump-version:
+        permissions:
+            contents: write
+        runs-on: ubuntu-latest
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  persist-credentials: true
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+
+            - name: Install bumpver
+              run: pip install "bumpver>=0.7,<1.0"
+
+            - name: Determine bump type
+              id: bump
+              run: |
+                  echo "BUMP_PART=${{ github.event.inputs.version_part || 'minor' }}" >> $GITHUB_ENV
+
+            - name: Configure Git user
+              run: |
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Bump version
+              run: bumpver update --${{ env.BUMP_PART }} --tag --push
