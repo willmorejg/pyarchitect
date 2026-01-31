@@ -1,5 +1,11 @@
 {
     "[markdown]": {
         "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
-    }
+    },
+    "python.analysis.extraPaths": [
+        "src"
+    ],
+    "python.autoComplete.extraPaths": [
+        "src"
+    ]
 }
