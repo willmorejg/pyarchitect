@@ -7,5 +7,9 @@
     ],
     "python.autoComplete.extraPaths": [
         "src"
-    ]
+    ],
+    "sonarlint.connectedMode.project": {
+        "connectionId": "willmorejg",
+        "projectKey": "willmorejg_pyarchitect"
+    }
 }
