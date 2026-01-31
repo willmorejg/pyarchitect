@@ -51,7 +51,7 @@ exclude = [
 # Enable specific rule sets
 select = [
     "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings  
+    "W",    # pycodestyle warnings
     "F",    # Pyflakes
     "UP",   # pyupgrade
     "B",    # flake8-bugbear
