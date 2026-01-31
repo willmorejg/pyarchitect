@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "pyarchitect"
 dynamic = ["version"]
@@ -26,4 +30,13 @@ version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "v{new_version}"
 tag_scope = "default" 
+
+[tool.bumpver.file_patterns]
 "pyproject.toml" = ['current_version = "{version}"']
+"src/mods/__init__.py" = ['__version__ = "{version}"']
+
+[tool.hatch.version]
+path = "src/mods/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mods"]
