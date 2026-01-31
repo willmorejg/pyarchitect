@@ -17,7 +17,7 @@ from enum import Enum
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Json
+from pydantic import BaseModel, Field, Json
 
 TIMEZONE = ZoneInfo("America/New_York")
 
@@ -31,15 +31,15 @@ class ModelType(str, Enum):
 
 class SuperModel(BaseModel):
     """ A super model representing a generic entity in the system. """
-    id: uuid.UUID = uuid.uuid4()
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     name: str
     description: str | None = None
     model_type: ModelType
     revision: int = 1
     is_active: bool = True
-    tags: list[str] = []
+    tags: list[str] = Field(default_factory=list)
     properties: Json[dict[str, Any]] | None = None
-    created_modified: dt.datetime = dt.datetime.now(TIMEZONE)
+    created_modified: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
     created_by: str = "system"
-    last_modified: dt.datetime = dt.datetime.now(TIMEZONE)
+    last_modified: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
     modified_by: str = "system"
