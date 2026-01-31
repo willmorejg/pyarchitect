@@ -49,3 +49,4 @@ jobs:
                   git config user.email "github-actions@github.com"
                   git commit -am "🔖 bump version: ${{ env.BUMP_PART }}"
                   git push
+                  git push --tags
