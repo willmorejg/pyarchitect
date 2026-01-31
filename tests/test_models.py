@@ -50,5 +50,5 @@ class TestModels:
         # properties is stored as dict
         assert model.properties == properties
 
-        logger.info("Created SuperModel:", extras={"model": str(model)})
+        logger.info("Created SuperModel:", model=str(model))
         logger.info("Completed test_models successfully")
