@@ -16,7 +16,7 @@ dependencies = [
 path = "src/mods/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mods"]
+packages = ["mods"]
 
 [dependency-groups]
 dev = [
