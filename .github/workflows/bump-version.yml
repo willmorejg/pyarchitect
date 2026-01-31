@@ -17,6 +17,8 @@ on:
 
 jobs:
     bump-version:
+        permissions:
+            contents: write
         runs-on: ubuntu-latest
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
 
