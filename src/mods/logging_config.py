@@ -157,7 +157,7 @@ class LoggingConfig:
                     "site-packages" not in record.filename
                     and "logging" not in record.filename
                 ):
-                    event_dict["filename"] = record.filename.split("/")[-1]
+                    event_dict["filename"] = os.path.basename(record.filename)
                     event_dict["func_name"] = record.function
                     event_dict["lineno"] = record.lineno
                     break
