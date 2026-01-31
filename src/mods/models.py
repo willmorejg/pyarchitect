@@ -39,7 +39,7 @@ class SuperModel(BaseModel):
     is_active: bool = True
     tags: list[str] = Field(default_factory=list)
     properties: Json[dict[str, Any]] | None = None
-    created_modified: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
+    created: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
     created_by: str = "system"
     last_modified: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
     modified_by: str = "system"
