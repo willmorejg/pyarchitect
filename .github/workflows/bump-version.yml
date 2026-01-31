@@ -6,7 +6,7 @@ on:
             version_part:
                 description: "Which part of the version to bump?"
                 required: true
-                default: "major"
+                default: "minor"
                 type: choice
                 options:
                     - major
@@ -40,15 +40,10 @@ jobs:
             - name: Determine bump type
               id: bump
               run: |
-                  echo "BUMP_PART=${{ github.event.inputs.version_part || 'major' }}" >> $GITHUB_ENV
+                  echo "BUMP_PART=${{ github.event.inputs.version_part || 'minor' }}" >> $GITHUB_ENV
 
             - name: Bump version
               run: bumpver update --${{ env.BUMP_PART }}
 
-            - name: Commit bumped version
-              run: |
-                  git config user.name "github-actions"
-                  git config user.email "github-actions@github.com"
-                  git commit -am "🔖 bump version: ${{ env.BUMP_PART }}"
                   git push
                   git push --tags
