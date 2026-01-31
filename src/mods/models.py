@@ -21,16 +21,20 @@ from pydantic import BaseModel, Field, Json
 
 TIMEZONE = ZoneInfo("America/New_York")
 
+
 class ModelType(str, Enum):
-    """ Model types available in the system. """
+    """Model types available in the system."""
+
     HARDWARE = "hardware"
     SOFTWARE = "software"
     DATABASE = "database"
     PROCESS = "process"
     PERSON = "person"
 
+
 class SuperModel(BaseModel):
-    """ A super model representing a generic entity in the system. """
+    """A super model representing a generic entity in the system."""
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     name: str
     description: str | None = None
@@ -38,8 +42,13 @@ class SuperModel(BaseModel):
     revision: int = 1
     is_active: bool = True
     tags: list[str] = Field(default_factory=list)
-    properties: Json[dict[str, Any]] | None = None
+    properties: Json[Any] | None = None
     created: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
     created_by: str = "system"
-    last_modified: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
+    last_modified: dt.datetime = Field(
+        default_factory=lambda: dt.datetime.now(TIMEZONE)
+    )
     modified_by: str = "system"
+
+    def __str__(self) -> str:
+        return self.model_dump_json()
