@@ -120,6 +120,11 @@ class ConfigurationItem(SQLModel, table=True):
             elif prop.key == key:
                 return prop.value
         return None
+    
+    @staticmethod
+    def get_timezone() -> ZoneInfo:
+        """Get the timezone used by the ConfigurationItem model."""
+        return TIMEZONE
 
     def __str__(self) -> str:
         return self.model_dump_json()

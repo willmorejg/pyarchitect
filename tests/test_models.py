@@ -22,7 +22,7 @@ class TestModels:
 
     def test_models(self):
         """
-        Test the SuperModel creation and attributes.
+        Test the ConfigurationItem creation and attributes.
         """
         logger.info("Starting test_models")
 
@@ -34,7 +34,7 @@ class TestModels:
         properties.append({"ram": "16GB"})
         properties.append({"os": "Ubuntu 22.04"})
 
-        # Create SuperModel instance
+        # Create ConfigurationItem instance
         model = ConfigurationItem(
             name=name,
             model_type=model_type,

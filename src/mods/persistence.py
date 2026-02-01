@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import datetime as dt
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from mods.logging_config import LoggingConfig
@@ -45,6 +46,7 @@ class Persistence:
         :param model: The ConfigurationItem instance to save.
         """
         with Session(self.engine) as session:
+            model.last_modified = dt.datetime.now(tz=ConfigurationItem.get_timezone())
             merged_model = session.merge(model)
             session.commit()
             session.refresh(merged_model)
@@ -70,7 +72,10 @@ class Persistence:
         """
         with Session(self.engine) as session:
             statement = select(ConfigurationItem)
-            return list(session.exec(statement).all())
+            result = list(session.exec(statement).all())
+            for instance in result:
+                session.expunge(instance)
+            return result
 
     def delete(self, model: ConfigurationItem) -> None:
         """
