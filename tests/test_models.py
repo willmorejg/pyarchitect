@@ -34,7 +34,7 @@ class TestModels:
         properties.append({"ram": "16GB"})
         properties.append({"os": "Ubuntu 22.04"})
 
-        # Create SuperModel instance; properties needs JSON serialization
+        # Create SuperModel instance
         model = SuperModel(
             name=name,
             model_type=model_type,
