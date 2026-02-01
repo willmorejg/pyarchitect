@@ -61,6 +61,16 @@ class SuperModel(BaseModel):
         :param value: The property value.
         """
         self.properties.append(PropertyModel(key=key, value=value))
+    
+    def get_property(self, key: str) -> Any | None:
+        """Retrieves a property value by key.
+        :param key: The property key.
+        :return: The property value or None if not found.
+        """
+        for prop in self.properties:
+            if prop.key == key:
+                return prop.value
+        return None
 
     def __str__(self) -> str:
         return self.model_dump_json()

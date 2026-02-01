@@ -50,8 +50,12 @@ class TestModels:
         assert model.is_active is True
         assert model.revision == 1
         assert model.tags == []
-        # properties is stored as list of PropertyModel instances
-        #assert all(isinstance(prop, PropertyModel) for prop in model.properties)
+        assert len(model.properties) == len(properties)
+        for prop in properties:
+            for key, value in prop.items():
+                assert model.get_property(key) == value
+        # just for added verification
+        assert model.get_property("cpu") == "Intel i7"
 
         logger.info("Created SuperModel:", model=str(model))
         logger.info("Completed test_models successfully")
