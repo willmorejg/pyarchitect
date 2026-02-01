@@ -18,7 +18,6 @@ import pandas as pd
 from .logging_config import LoggingConfig
 
 logger = LoggingConfig().get_logger()
-
 class ModelToDataframeMapper:
     """
     A class responsible for mapping model instances to dataframes.
