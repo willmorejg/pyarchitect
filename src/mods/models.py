@@ -64,8 +64,8 @@ class ConfigurationItem(SQLModel, table=True):
 
     __tablename__: str = "configuration_items"  # type: ignore[assignment]
 
-    id: uuid.UUID = Field(
-        default_factory=uuid.uuid4,
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
         sa_column=Column(String(36), primary_key=True),
     )
     name: str = Field(sa_column=Column(String, nullable=False))
