@@ -15,6 +15,7 @@
 __version__ = "0.1.0"
 
 from .logging_config import LoggingConfig
+from .mappers import ModelToDataframeMapper
 from .models import ModelType, SuperModel
 
-__all__ = ["SuperModel", "ModelType", "LoggingConfig"]
+__all__ = ["ModelType", "SuperModel", "LoggingConfig", "ModelToDataframeMapper"]
