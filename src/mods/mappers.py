@@ -24,10 +24,10 @@ class ModelToDataframeMapper:
     A class responsible for mapping model instances to dataframes.
     """
 
-    def marshal(self, model_instances:list) -> pd.DataFrame:
+    def marshal(self, model_instances: list[object]) -> pd.DataFrame:
         """
         Marshals a model instance to a dictionary representing a dataframe row.
-        :param model_instance: The model instance to be mapped.
+        :param model_instances: The model instances to be mapped.
         :return: A dataframe representing the model instance.
         """
         model_dicts = [m.model_dump() for m in model_instances]
