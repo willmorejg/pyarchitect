@@ -13,7 +13,7 @@
 # limitations under the License.
 from mods.logging_config import LoggingConfig
 from mods.mappers import ModelToDataframeMapper
-from mods.models import ModelType, SuperModel
+from mods.models import ConfigurationItem, ModelType
 
 logger = LoggingConfig().get_logger()
 
@@ -28,7 +28,7 @@ class TestMappers:
         logger.info("Starting test_model_to_dataframe_mapper")
 
         # set up test model instances
-        model1 = SuperModel(
+        model1 = ConfigurationItem(
             name="Model One",
             model_type=ModelType.HARDWARE,
         )
@@ -37,7 +37,7 @@ class TestMappers:
             for key, value in prop.items():
                 model1.add_property(key, value)
 
-        model2 = SuperModel(
+        model2 = ConfigurationItem(
             name="Model Two",
             model_type=ModelType.SOFTWARE,
         )

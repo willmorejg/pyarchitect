@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from mods.logging_config import LoggingConfig
-from mods.models import ModelType, SuperModel
+from mods.models import ConfigurationItem, ModelType
 
 logger = LoggingConfig().logger
 
@@ -35,7 +35,7 @@ class TestModels:
         properties.append({"os": "Ubuntu 22.04"})
 
         # Create SuperModel instance
-        model = SuperModel(
+        model = ConfigurationItem(
             name=name,
             model_type=model_type,
         )
