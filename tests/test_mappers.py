@@ -55,6 +55,17 @@ class TestMappers:
         assert df.shape[0] == 2  # two rows for two models
         assert "name" in df.columns
 
+        # Validate flattened properties columns
+        assert "properties.gpu" in df.columns
+        assert "properties.storage" in df.columns
+        assert "properties.language" in df.columns
+        assert "properties.framework" in df.columns
+
+        # Check values are correctly mapped
+        assert df.loc[0, "properties.gpu"] == "NVIDIA RTX 3080"
+        assert df.loc[0, "properties.storage"] == "1TB SSD"
+        assert df.loc[1, "properties.language"] == "Python"
+        assert df.loc[1, "properties.framework"] == "FastAPI"
+
         logger.info("Created DataFrame from models:\n", df=df)
-        logger.info(" properties:\n", properties=df.properties)
         logger.info("Completed test_model_to_dataframe_mapper successfully")
