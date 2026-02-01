@@ -96,6 +96,9 @@ class LoggingConfig:
         # 4. Set up the standard library logger
         # This captures logs from both structlog and other libraries
         root_logger = logging.getLogger()
+        # Ensure idempotency: clear existing handlers before adding new ones
+        if root_logger.handlers:
+            root_logger.handlers.clear()
         root_logger.addHandler(console_handler)
         root_logger.addHandler(file_handler)
         root_logger.setLevel(log_level)  # Set desired log level
