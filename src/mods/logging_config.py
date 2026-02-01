@@ -15,6 +15,7 @@ import inspect
 import logging
 import os
 import sys
+import threading
 
 import structlog
 from structlog.stdlib import ProcessorFormatter
@@ -39,11 +40,14 @@ class LoggingConfig:
     """Configuration for structlog logging."""
     _instance = None
     _initialized = False
+    _lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
         """Implement singleton pattern to ensure single logger instance."""
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
+        if not cls._instance:
+            with cls._lock:
+                if not cls._instance:
+                    cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
