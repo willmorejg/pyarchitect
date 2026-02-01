@@ -14,10 +14,13 @@
 import datetime as dt
 import uuid
 from enum import Enum
-from typing import Annotated, Any
+from typing import Any
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field
+from pydantic import model_validator
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy.types import JSON, TypeDecorator
+from sqlmodel import Field, SQLModel
 
 TIMEZONE = ZoneInfo("America/New_York")
 
@@ -32,28 +35,70 @@ class ModelType(str, Enum):
     PERSON = "person"
 
 
-class PropertyModel(BaseModel):
-    """A model representing a key-value property."""
+class PropertyModel(SQLModel):
+    """A model representing a key-value property (no associated database table; a column value)."""
 
     key: str
     value: Any
 
 
-class SuperModel(BaseModel):
-    """A super model representing a generic entity in the system."""
+class PydanticListJSON(TypeDecorator):
+    """Custom type to serialize list of Pydantic models to JSON."""
 
-    id: Annotated[uuid.UUID, Field(default_factory=uuid.uuid4)]
-    name: str
-    description: str | None = None
-    model_type: ModelType
-    revision: int = 1
-    is_active: bool = True
-    tags: Annotated[list[str], Field(default_factory=list)]
-    properties: Annotated[list[PropertyModel], Field(default_factory=list)]
-    created: Annotated[dt.datetime, Field(default_factory=lambda: dt.datetime.now(TIMEZONE))]
-    created_by: str = "system"
-    last_modified: Annotated[dt.datetime, Field(default_factory=lambda: dt.datetime.now(TIMEZONE))]
-    modified_by: str = "system"
+    impl = JSON
+    cache_ok = True
+
+    def process_bind_param(self, value: list | None, dialect: Any) -> list | None:
+        """Convert PropertyModel instances to dicts before storing."""
+        if value is None:
+            return value
+        return [item.model_dump() if hasattr(item, "model_dump") else item for item in value]
+
+    def process_result_value(self, value: list | None, dialect: Any) -> list | None:
+        """Return raw list from database (rehydration happens via model_validator)."""
+        return value
+
+
+class ConfigurationItem(SQLModel, table=True):
+    """Model representing a configuration item in the system."""
+
+    __tablename__: str = "configuration_items"  # type: ignore[assignment]
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), primary_key=True),
+    )
+    name: str = Field(sa_column=Column(String, nullable=False))
+    description: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    model_type: ModelType = Field(sa_column=Column(String, nullable=False))
+    revision: int = Field(default=1, sa_column=Column(Integer, nullable=False))
+    is_active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    properties: list[PropertyModel] = Field(
+        default_factory=list, sa_column=Column(PydanticListJSON, nullable=False)
+    )
+    created: dt.datetime = Field(
+        default_factory=lambda: dt.datetime.now(TIMEZONE),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    created_by: str = Field(default="system", sa_column=Column(String, nullable=False))
+    last_modified: dt.datetime = Field(
+        default_factory=lambda: dt.datetime.now(TIMEZONE),
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+    modified_by: str = Field(default="system", sa_column=Column(String, nullable=False))
+
+    @model_validator(mode="after")
+    def rehydrate_properties(self) -> "ConfigurationItem":
+        """Convert dict properties back to PropertyModel instances on load."""
+        if self.properties and len(self.properties) > 0:
+            first = self.properties[0]
+            if isinstance(first, dict):
+                self.properties = [
+                    PropertyModel(key=p["key"], value=p["value"])  # type: ignore[index]
+                    for p in self.properties
+                ]
+        return self
 
     def add_property(self, key: str, value: Any) -> None:
         """Adds a property to the model.
@@ -61,15 +106,25 @@ class SuperModel(BaseModel):
         :param value: The property value.
         """
         self.properties.append(PropertyModel(key=key, value=value))
+
     def get_property(self, key: str) -> Any | None:
         """Retrieves a property value by key.
         :param key: The property key.
         :return: The property value or None if not found.
         """
         for prop in self.properties:
-            if prop.key == key:
+            # Handle both PropertyModel instances and dicts (from DB load)
+            if isinstance(prop, dict):
+                if prop.get("key") == key:
+                    return prop.get("value")
+            elif prop.key == key:
                 return prop.value
         return None
+
+    @staticmethod
+    def get_timezone() -> ZoneInfo:
+        """Get the timezone used by the ConfigurationItem model."""
+        return TIMEZONE
 
     def __str__(self) -> str:
         return self.model_dump_json()
