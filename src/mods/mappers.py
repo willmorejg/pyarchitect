@@ -17,7 +17,7 @@ import pandas as pd
 
 from .logging_config import LoggingConfig
 
-logger = LoggingConfig().logger
+logger = LoggingConfig().get_logger()
 
 class ModelToDataframeMapper:
     """
