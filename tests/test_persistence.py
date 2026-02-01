@@ -23,7 +23,7 @@ class TestPersistence:
 
     def test_persistence(self):
         """
-        Test the Persistence class for saving and retrieving SuperModel instances.
+        Test the Persistence class for saving and retrieving ConfigurationItem instances.
         """
         logger = LoggingConfig().get_logger()
         logger.info("Starting test_persistence")
@@ -35,7 +35,7 @@ class TestPersistence:
         persistence = Persistence("duckdb:///" + duckdb_path)
         persistence.create_tables()
 
-        # Create a SuperModel instance
+        # Create a ConfigurationItem instance
         model = ConfigurationItem(
             name="Persistent Model",
             model_type=ModelType.HARDWARE,
