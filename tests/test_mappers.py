@@ -17,6 +17,7 @@ from mods.models import ModelType, SuperModel
 
 logger = LoggingConfig().get_logger()
 
+
 class TestMappers:
     """Test suite for mappers.py"""
 
@@ -30,13 +31,21 @@ class TestMappers:
         model1 = SuperModel(
             name="Model One",
             model_type=ModelType.HARDWARE,
-            properties=[("gpu", "NVIDIA RTX 3080"), ("storage", "1TB SSD")],
         )
+        model1_properties = [{"gpu": "NVIDIA RTX 3080"}, {"storage": "1TB SSD"}]
+        for prop in model1_properties:
+            for key, value in prop.items():
+                model1.add_property(key, value)
+
         model2 = SuperModel(
             name="Model Two",
             model_type=ModelType.SOFTWARE,
-            properties=[("language", "Python"), ("framework", "FastAPI")],
         )
+
+        model2_properties = [{"language": "Python"}, {"framework": "FastAPI"}]
+        for prop in model2_properties:
+            for key, value in prop.items():
+                model2.add_property(key, value)
 
         mapper = ModelToDataframeMapper()
         df = mapper.marshal([model1, model2])
