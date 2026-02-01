@@ -57,7 +57,11 @@ class Persistence:
         :param model_id: The ID of the ConfigurationItem to retrieve.
         """
         with Session(self.engine) as session:
-            return session.get(ConfigurationItem, model_id)
+            instance = session.get(ConfigurationItem, model_id)
+            if instance is not None:
+                # Detach the instance so it can be safely used after the session closes.
+                session.expunge(instance)
+            return instance
 
     def get_all(self) -> list[ConfigurationItem]:
         """
