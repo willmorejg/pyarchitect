@@ -37,9 +37,22 @@ RESET = "\033[0m"
 
 class LoggingConfig:
     """Configuration for structlog logging."""
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        """Implement singleton pattern to ensure single logger instance."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self):
         """Initialize the logging configuration."""
+        if not self._initialized:
+            self.init_config()
+
+    def init_config(self, log_level: int = logging.INFO) -> None:
+        """Initializes the structlog configuration with console and file handlers."""
         # 1. Define shared processors (add timestamps, log level names, etc.)
         shared_processors = [
             structlog.contextvars.merge_contextvars,
@@ -73,9 +86,7 @@ class LoggingConfig:
         cwd = os.getcwd()
         logs_dir = os.path.join(cwd, "logs")
         os.makedirs(logs_dir, exist_ok=True)
-        file_handler = logging.FileHandler(
-            os.path.join(logs_dir, "app.log"), mode="a"
-        )
+        file_handler = logging.FileHandler(os.path.join(logs_dir, "app.log"), mode="a")
         file_handler.setFormatter(json_formatter)
 
         # 4. Set up the standard library logger
@@ -83,7 +94,7 @@ class LoggingConfig:
         root_logger = logging.getLogger()
         root_logger.addHandler(console_handler)
         root_logger.addHandler(file_handler)
-        root_logger.setLevel(logging.INFO)  # Set desired log level
+        root_logger.setLevel(log_level)  # Set desired log level
 
         # 5. Configure structlog to use the standard library for output
         structlog.configure(
@@ -96,6 +107,7 @@ class LoggingConfig:
             cache_logger_on_first_use=True,
         )
 
+        self._initialized = True
         self.logger = structlog.get_logger()
         self.logger.debug("Logging is configured.")
 
@@ -136,6 +148,7 @@ class LoggingConfig:
                 f"[{line_color}{lineno}{reset}] "
                 f"{event} - {extras_color}{extras}{reset}"
             )
+
         return renderer
 
     def add_callsite_info(self, _, __, event_dict: EventDict) -> EventDict:
@@ -162,3 +175,13 @@ class LoggingConfig:
                     event_dict["lineno"] = record.lineno
                     break
         return event_dict
+
+    def get_logger(self) -> structlog.stdlib.BoundLogger:
+        """
+        Returns the configured structlog logger.
+        Returns:
+            BoundLogger: The structlog logger instance.
+        """
+        if not self._initialized:
+            self.init_config()
+        return self.logger
