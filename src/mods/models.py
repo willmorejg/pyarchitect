@@ -61,7 +61,6 @@ class SuperModel(BaseModel):
         :param value: The property value.
         """
         self.properties.append(PropertyModel(key=key, value=value))
-    
     def get_property(self, key: str) -> Any | None:
         """Retrieves a property value by key.
         :param key: The property key.
