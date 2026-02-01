@@ -36,7 +36,7 @@ class ModelType(str, Enum):
 
 
 class PropertyModel(SQLModel):
-    """A model representing a key-value property."""
+    """A model representing a key-value property (no associated database table; a column value)."""
 
     key: str
     value: Any
