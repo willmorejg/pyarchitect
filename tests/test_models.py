@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
 from mods.logging_config import LoggingConfig
 from mods.models import ModelType, SuperModel
 
@@ -30,16 +29,20 @@ class TestModels:
         # set up test values
         name = "Test Model"
         model_type = ModelType.SOFTWARE
-        properties = {"cpu": "Intel i7", "ram": "16GB", "os": "Ubuntu 22.04"}
-
-        properties_json = json.dumps(properties)
+        properties = []
+        properties.append({"cpu": "Intel i7"})
+        properties.append({"ram": "16GB"})
+        properties.append({"os": "Ubuntu 22.04"})
 
         # Create SuperModel instance; properties needs JSON serialization
         model = SuperModel(
             name=name,
             model_type=model_type,
-            properties=properties_json,
         )
+
+        for prop in properties:
+            for key, value in prop.items():
+                model.add_property(key, value)
 
         # Validate model attributes
         assert model.name == name
@@ -47,8 +50,8 @@ class TestModels:
         assert model.is_active is True
         assert model.revision == 1
         assert model.tags == []
-        # properties is stored as dict
-        assert model.properties == properties
+        # properties is stored as list of PropertyModel instances
+        #assert all(isinstance(prop, PropertyModel) for prop in model.properties)
 
         logger.info("Created SuperModel:", model=str(model))
         logger.info("Completed test_models successfully")

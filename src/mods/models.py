@@ -14,10 +14,10 @@
 import datetime as dt
 import uuid
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, Json
+from pydantic import BaseModel, Field
 
 TIMEZONE = ZoneInfo("America/New_York")
 
@@ -32,23 +32,35 @@ class ModelType(str, Enum):
     PERSON = "person"
 
 
+class PropertyModel(BaseModel):
+    """A model representing a key-value property."""
+
+    key: str
+    value: Any
+
+
 class SuperModel(BaseModel):
     """A super model representing a generic entity in the system."""
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    id: Annotated[uuid.UUID, Field(default_factory=uuid.uuid4)]
     name: str
     description: str | None = None
     model_type: ModelType
     revision: int = 1
     is_active: bool = True
-    tags: list[str] = Field(default_factory=list)
-    properties: Json[Any] | None = None
-    created: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
+    tags: Annotated[list[str], Field(default_factory=list)]
+    properties: Annotated[list[PropertyModel], Field(default_factory=list)]
+    created: Annotated[dt.datetime, Field(default_factory=lambda: dt.datetime.now(TIMEZONE))]
     created_by: str = "system"
-    last_modified: dt.datetime = Field(
-        default_factory=lambda: dt.datetime.now(TIMEZONE)
-    )
+    last_modified: Annotated[dt.datetime, Field(default_factory=lambda: dt.datetime.now(TIMEZONE))]
     modified_by: str = "system"
+
+    def add_property(self, key: str, value: Any) -> None:
+        """Adds a property to the model.
+        :param key: The property key.
+        :param value: The property value.
+        """
+        self.properties.append(PropertyModel(key=key, value=value))
 
     def __str__(self) -> str:
         return self.model_dump_json()
