@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import datetime as dt
+import json
 import uuid
 from enum import Enum
 from typing import Any
@@ -48,19 +49,56 @@ class PydanticListJSON(TypeDecorator):
     impl = JSON
     cache_ok = True
 
+    @property
+    def python_type(self) -> type:
+        """Return the Python type object expected for values of this type."""
+        return list
+
+    def process_literal_param(
+        self, value: list | None, dialect: Any
+    ) -> str:  # noqa: ARG002
+        """
+        Process a literal parameter value for inline rendering in SQL.
+        Convert PropertyModel instances to dicts before storing.
+        :param value: The value to be processed.
+        :param dialect: The SQL dialect in use.
+        :return: The processed value as a JSON string.
+        """
+        if value is None:
+            return json.dumps(None)
+        processed = [
+            item.model_dump() if hasattr(item, "model_dump") else item for item in value
+        ]
+        return json.dumps(processed)
+
     def process_bind_param(self, value: list | None, dialect: Any) -> list | None:
-        """Convert PropertyModel instances to dicts before storing."""
+        """
+        Convert PropertyModel instances to dicts before storing.
+        :param value: The value to be processed.
+        :param dialect: The SQL dialect in use.
+        :return: The processed value.
+        """
         if value is None:
             return value
-        return [item.model_dump() if hasattr(item, "model_dump") else item for item in value]
+        return [
+            item.model_dump() if hasattr(item, "model_dump") else item for item in value
+        ]
 
     def process_result_value(self, value: list | None, dialect: Any) -> list | None:
-        """Return raw list from database (rehydration happens via model_validator)."""
+        """
+        Return raw list from database (rehydration happens via model_validator).
+        :param value: The value retrieved from the database.
+        :param dialect: The SQL dialect in use.
+        :return: The raw value.
+        """
         return value
 
 
 class ConfigurationItem(SQLModel, table=True):
-    """Model representing a configuration item in the system."""
+    """
+    Model representing a configuration item in the system.
+    :param table: Indicates that this model corresponds to a database table.
+    """
 
     __tablename__: str = "configuration_items"  # type: ignore[assignment]
 
@@ -69,11 +107,15 @@ class ConfigurationItem(SQLModel, table=True):
         sa_column=Column(String(36), primary_key=True),
     )
     name: str = Field(sa_column=Column(String, nullable=False))
-    description: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    description: str | None = Field(
+        default=None, sa_column=Column(String, nullable=True)
+    )
     model_type: ModelType = Field(sa_column=Column(String, nullable=False))
     revision: int = Field(default=1, sa_column=Column(Integer, nullable=False))
     is_active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
-    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    tags: list[str] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
     properties: list[PropertyModel] = Field(
         default_factory=list, sa_column=Column(PydanticListJSON, nullable=False)
     )
@@ -123,8 +165,15 @@ class ConfigurationItem(SQLModel, table=True):
 
     @staticmethod
     def get_timezone() -> ZoneInfo:
-        """Get the timezone used by the ConfigurationItem model."""
+        """
+        Get the timezone used by the ConfigurationItem model.
+        :return: The ZoneInfo object representing the timezone.
+        """
         return TIMEZONE
 
     def __str__(self) -> str:
+        """
+        Return the JSON representation of the model.
+        :return: JSON string of the model.
+        """
         return self.model_dump_json()
