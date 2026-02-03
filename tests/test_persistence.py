@@ -19,12 +19,10 @@ from mods.persistence import Persistence
 
 
 class TestPersistence:
-    """Test suite for persistence.py"""
+    """Test suite for persistence.py."""
 
     def test_configuration_item_persistence(self):
-        """
-        Test the Persistence class for saving and retrieving ConfigurationItem instances.
-        """
+        """Test saving and retrieving ConfigurationItem instances."""
         logger = LoggingConfig().get_logger()
         logger.info("Starting test_configuration_item_persistence")
 
@@ -80,9 +78,7 @@ class TestPersistence:
         logger.info("test_configuration_item_persistence completed successfully")
 
     def test_model_type_property_persistence(self):
-        """
-        Test the Persistence class for saving and retrieving ModelTypeProperty instances.
-        """
+        """Test saving and retrieving ModelTypeProperty instances."""
         logger = LoggingConfig().get_logger()
         logger.info("Starting test_model_type_property_persistence")
 

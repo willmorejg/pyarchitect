@@ -120,10 +120,11 @@ class LoggingConfig:
         self.logger.debug("Logging is configured.")
 
     def custom_console_renderer(self, colors: bool = True) -> Processor:
-        """
-        Custom console renderer for structlog.
+        """Custom console renderer for structlog.
+
         Args:
             colors (bool): Whether to use colors in the output.
+
         Returns:
             Processor: A structlog processor function.
         """
@@ -160,12 +161,13 @@ class LoggingConfig:
         return renderer
 
     def add_callsite_info(self, _, __, event_dict: EventDict) -> EventDict:
-        """
-        Inspect the call stack to find the originating caller info.
+        """Inspect the call stack to find the originating caller info.
+
         Args:
             _ : Unused.
             __ : Unused.
             event_dict (EventDict): The event dictionary to update.
+
         Returns:
             EventDict: The updated event dictionary with callsite info.
         """
@@ -185,8 +187,8 @@ class LoggingConfig:
         return event_dict
 
     def get_logger(self) -> structlog.stdlib.BoundLogger:
-        """
-        Returns the configured structlog logger.
+        """Returns the configured structlog logger.
+
         Returns:
             BoundLogger: The structlog logger instance.
         """

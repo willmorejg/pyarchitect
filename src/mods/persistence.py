@@ -28,9 +28,10 @@ class Persistence:
     """Class for persisting data to a SQL database using SQLModel."""
 
     def __init__(self, db_url: str):
-        """
-        Initialize the Persistence class with a database URL.
-        :param db_url: Database connection URL (e.g., 'duckdb:///./data.db').
+        """Initialize the Persistence class with a database URL.
+
+        Args:
+            db_url: Database connection URL (e.g., 'duckdb:///./data.db').
         """
         self.engine = create_engine(db_url)
         logger.info("Database engine created.")
@@ -45,10 +46,13 @@ class Persistence:
         return Session(self.engine)
 
     def save(self, model: T) -> T:
-        """
-        Save a SQLModel instance to the database.
-        :param model: The SQLModel instance to save.
-        :return: The saved model instance.
+        """Save a SQLModel instance to the database.
+
+        Args:
+            model: The SQLModel instance to save.
+
+        Returns:
+            The saved model instance.
         """
         with Session(self.engine) as session:
             if hasattr(model, "last_modified"):
@@ -64,11 +68,14 @@ class Persistence:
             return merged_model
 
     def get_by_id(self, model_class: type[T], model_id: str) -> T | None:
-        """
-        Retrieve a model instance by its ID.
-        :param model_class: The model class to query.
-        :param model_id: The ID of the model to retrieve.
-        :return: The model instance or None if not found.
+        """Retrieve a model instance by its ID.
+
+        Args:
+            model_class: The model class to query.
+            model_id: The ID of the model to retrieve.
+
+        Returns:
+            The model instance or None if not found.
         """
         with Session(self.engine) as session:
             instance = session.get(model_class, model_id)
@@ -77,10 +84,13 @@ class Persistence:
             return instance
 
     def get_all(self, model_class: type[T]) -> list[T]:
-        """
-        Retrieve all instances of the specified model class.
-        :param model_class: The model class to query.
-        :return: List of all model instances.
+        """Retrieve all instances of the specified model class.
+
+        Args:
+            model_class: The model class to query.
+
+        Returns:
+            List of all model instances.
         """
         with Session(self.engine) as session:
             statement = select(model_class)
@@ -90,9 +100,10 @@ class Persistence:
             return result
 
     def delete(self, model: SQLModel) -> None:
-        """
-        Delete a SQLModel instance from the database.
-        :param model: The SQLModel instance to delete.
+        """Delete a SQLModel instance from the database.
+
+        Args:
+            model: The SQLModel instance to delete.
         """
         with Session(self.engine) as session:
             session.delete(model)
@@ -100,10 +111,11 @@ class Persistence:
             logger.info(f"Deleted model with id: {getattr(model, 'id', 'unknown')}")
 
     def delete_by_id(self, model_class: type[SQLModel], model_id: str) -> None:
-        """
-        Delete a model instance by its ID.
-        :param model_class: The model class to query.
-        :param model_id: The ID of the model to delete.
+        """Delete a model instance by its ID.
+
+        Args:
+            model_class: The model class to query.
+            model_id: The ID of the model to delete.
         """
         with Session(self.engine) as session:
             model = session.get(model_class, model_id)
