@@ -13,6 +13,8 @@
 # limitations under the License.
 import os
 
+import pytest
+
 from mods.logging_config import LoggingConfig
 from mods.models import (
     DatabaseItem,
@@ -25,23 +27,33 @@ from mods.models import (
 )
 from mods.persistence import Persistence
 
+logger = LoggingConfig().get_logger()
+
+
+@pytest.fixture(scope="class")
+def persistence():
+    """Create a shared Persistence instance for all tests in the class.
+
+    Set KEEP_TEST_DB=1 environment variable to preserve the database file after tests.
+    """
+    duckdb_path = "test_data.db"
+    if os.path.exists(duckdb_path):
+        os.remove(duckdb_path)
+    persistence = Persistence("duckdb:///" + duckdb_path)
+    persistence.create_tables()
+    yield persistence
+    # Cleanup after all tests unless KEEP_TEST_DB is set
+    if not os.environ.get("KEEP_TEST_DB") and os.path.exists(duckdb_path):
+        os.remove(duckdb_path)
+
 
 class TestPersistence:
     """Test suite for persistence.py."""
 
-    def test_hardware_item_persistence(self):
+    def test_hardware_item_persistence(self, persistence):
         """Test saving and retrieving HardwareItem instances."""
-        logger = LoggingConfig().get_logger()
         logger.info("Starting test_hardware_item_persistence")
 
-        # Initialize Persistence with a DuckDB database for testing
-        duckdb_path = "test_data.db"
-        if os.path.exists(duckdb_path):
-            os.remove(duckdb_path)
-        persistence = Persistence("duckdb:///" + duckdb_path)
-        persistence.create_tables()
-
-        # Create a HardwareItem instance
         model = HardwareItem(
             name="Production Server",
             hardware_type="server",
@@ -51,10 +63,8 @@ class TestPersistence:
         model.add_property("cpu", "Intel Xeon")
         model.add_property("ram", "128GB")
 
-        # Save the model to the database
         saved_model = persistence.save(model)
 
-        # Retrieve the model by ID
         retrieved_model = persistence.get_by_id(HardwareItem, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
@@ -63,29 +73,17 @@ class TestPersistence:
         assert retrieved_model.hardware_vendor == "Dell"
         assert retrieved_model.get_property("cpu") == "Intel Xeon"
 
-        # Cleanup
-        for model in persistence.get_all(HardwareItem):
-            persistence.delete(model)
+        for item in persistence.get_all(HardwareItem):
+            persistence.delete(item)
 
-        assert len(persistence.get_all(HardwareItem)) == 0, (
-            "Database should be empty after deletions"
-        )
+        assert len(persistence.get_all(HardwareItem)) == 0
 
         logger.info("test_hardware_item_persistence completed successfully")
 
-    def test_software_item_persistence(self):
+    def test_software_item_persistence(self, persistence):
         """Test saving and retrieving SoftwareItem instances."""
-        logger = LoggingConfig().get_logger()
         logger.info("Starting test_software_item_persistence")
 
-        # Initialize Persistence with a DuckDB database for testing
-        duckdb_path = "test_data.db"
-        if os.path.exists(duckdb_path):
-            os.remove(duckdb_path)
-        persistence = Persistence("duckdb:///" + duckdb_path)
-        persistence.create_tables()
-
-        # Create a SoftwareItem instance
         model = SoftwareItem(
             name="Web Application",
             software_type="application",
@@ -96,10 +94,8 @@ class TestPersistence:
         model.add_property("version", "2.0.0")
         model.add_property("language", "Python")
 
-        # Save the model to the database
         saved_model = persistence.save(model)
 
-        # Retrieve the model by ID
         retrieved_model = persistence.get_by_id(SoftwareItem, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
@@ -109,29 +105,17 @@ class TestPersistence:
         assert retrieved_model.is_internal is True
         assert retrieved_model.get_property("version") == "2.0.0"
 
-        # Cleanup
-        for model in persistence.get_all(SoftwareItem):
-            persistence.delete(model)
+        for item in persistence.get_all(SoftwareItem):
+            persistence.delete(item)
 
-        assert len(persistence.get_all(SoftwareItem)) == 0, (
-            "Database should be empty after deletions"
-        )
+        assert len(persistence.get_all(SoftwareItem)) == 0
 
         logger.info("test_software_item_persistence completed successfully")
 
-    def test_database_item_persistence(self):
+    def test_database_item_persistence(self, persistence):
         """Test saving and retrieving DatabaseItem instances."""
-        logger = LoggingConfig().get_logger()
         logger.info("Starting test_database_item_persistence")
 
-        # Initialize Persistence with a DuckDB database for testing
-        duckdb_path = "test_data.db"
-        if os.path.exists(duckdb_path):
-            os.remove(duckdb_path)
-        persistence = Persistence("duckdb:///" + duckdb_path)
-        persistence.create_tables()
-
-        # Create a DatabaseItem instance
         model = DatabaseItem(
             name="Persistent Model",
             database_instance="prod-db-01",
@@ -142,10 +126,8 @@ class TestPersistence:
         model.add_property("gpu", "NVIDIA RTX 3080")
         model.add_property("storage", "1TB SSD")
 
-        # Save the model to the database
         saved_model = persistence.save(model)
 
-        # Retrieve the model by ID
         retrieved_model = persistence.get_by_id(DatabaseItem, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
@@ -158,143 +140,87 @@ class TestPersistence:
         assert updated_model.get_property("ram") == "32GB"
         assert updated_model.get_property("case") == "laptop"
 
-        # Retrieve all models
-        found_id = False
         all_models = persistence.get_all(DatabaseItem)
-        for model in all_models:
-            logger.info(f"Model ID: {model.id}, Name: {model.name}")
-            if model.id == saved_model.id:
-                found_id = True
+        assert any(m.id == saved_model.id for m in all_models)
 
-        assert found_id, "Saved model ID should be in the list of all models"
+        for item in persistence.get_all(DatabaseItem):
+            persistence.delete(item)
 
-        logger.info(f"Total models in database: {len(all_models)}")
-        for model in all_models:
-            persistence.delete(model)
-
-        assert len(persistence.get_all(DatabaseItem)) == 0, (
-            "Database should be empty after deletions"
-        )
+        assert len(persistence.get_all(DatabaseItem)) == 0
 
         logger.info("test_database_item_persistence completed successfully")
 
-    def test_process_item_persistence(self):
+    def test_process_item_persistence(self, persistence):
         """Test saving and retrieving ProcessItem instances."""
-        logger = LoggingConfig().get_logger()
         logger.info("Starting test_process_item_persistence")
 
-        # Initialize Persistence with a DuckDB database for testing
-        duckdb_path = "test_data.db"
-        if os.path.exists(duckdb_path):
-            os.remove(duckdb_path)
-        persistence = Persistence("duckdb:///" + duckdb_path)
-        persistence.create_tables()
-
-        # Create a ProcessItem instance
         model = ProcessItem(
             name="Data Pipeline",
         )
         model.add_property("schedule", "daily")
         model.add_property("owner", "data-team")
 
-        # Save the model to the database
         saved_model = persistence.save(model)
 
-        # Retrieve the model by ID
         retrieved_model = persistence.get_by_id(ProcessItem, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
         assert retrieved_model.name == "Data Pipeline"
         assert retrieved_model.get_property("schedule") == "daily"
 
-        # Cleanup
-        for model in persistence.get_all(ProcessItem):
-            persistence.delete(model)
+        for item in persistence.get_all(ProcessItem):
+            persistence.delete(item)
 
-        assert len(persistence.get_all(ProcessItem)) == 0, (
-            "Database should be empty after deletions"
-        )
+        assert len(persistence.get_all(ProcessItem)) == 0
 
         logger.info("test_process_item_persistence completed successfully")
 
-    def test_person_item_persistence(self):
+    def test_person_item_persistence(self, persistence):
         """Test saving and retrieving PersonItem instances."""
-        logger = LoggingConfig().get_logger()
         logger.info("Starting test_person_item_persistence")
 
-        # Initialize Persistence with a DuckDB database for testing
-        duckdb_path = "test_data.db"
-        if os.path.exists(duckdb_path):
-            os.remove(duckdb_path)
-        persistence = Persistence("duckdb:///" + duckdb_path)
-        persistence.create_tables()
-
-        # Create a PersonItem instance
         model = PersonItem(
             name="John Doe",
         )
         model.add_property("email", "john.doe@example.com")
         model.add_property("department", "Engineering")
 
-        # Save the model to the database
         saved_model = persistence.save(model)
 
-        # Retrieve the model by ID
         retrieved_model = persistence.get_by_id(PersonItem, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
         assert retrieved_model.name == "John Doe"
         assert retrieved_model.get_property("email") == "john.doe@example.com"
 
-        # Cleanup
-        for model in persistence.get_all(PersonItem):
-            persistence.delete(model)
+        for item in persistence.get_all(PersonItem):
+            persistence.delete(item)
 
-        assert len(persistence.get_all(PersonItem)) == 0, (
-            "Database should be empty after deletions"
-        )
+        assert len(persistence.get_all(PersonItem)) == 0
 
         logger.info("test_person_item_persistence completed successfully")
 
-    def test_model_type_property_persistence(self):
+    def test_model_type_property_persistence(self, persistence):
         """Test saving and retrieving ModelTypeProperty instances."""
-        logger = LoggingConfig().get_logger()
         logger.info("Starting test_model_type_property_persistence")
 
-        # Initialize Persistence with a DuckDB database for testing
-        duckdb_path = "test_data.db"
-        if os.path.exists(duckdb_path):
-            os.remove(duckdb_path)
-        persistence = Persistence("duckdb:///" + duckdb_path)
-        persistence.create_tables()
-
-        # Create a ModelTypeProperty instance
         model = ModelTypeProperty(
             model_type=ModelType.SOFTWARE,
             property_key="version",
             property_value="1.0.0",
         )
 
-        # Save the model to the database
         saved_model = persistence.save(model)
 
-        # Retrieve the model by ID
         retrieved_model = persistence.get_by_id(ModelTypeProperty, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
         assert retrieved_model.property_key == "version"
         assert retrieved_model.property_value == "1.0.0"
 
-        all_models = persistence.get_all(ModelTypeProperty)
-        assert len(all_models) == 1, (
-            "There should be exactly one ModelTypeProperty in the database"
-        )
-        logger.info(f"Total models in database: {len(all_models)}")
-        for model in all_models:
-            persistence.delete(model)
+        for item in persistence.get_all(ModelTypeProperty):
+            persistence.delete(item)
 
-        assert len(persistence.get_all(ModelTypeProperty)) == 0, (
-            "Database should be empty after deletions"
-        )
+        assert len(persistence.get_all(ModelTypeProperty)) == 0
 
         logger.info("test_model_type_property_persistence completed successfully")
