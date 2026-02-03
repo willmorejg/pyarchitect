@@ -14,19 +14,19 @@
 import os
 
 from mods.logging_config import LoggingConfig
-from mods.models import ConfigurationItem, ModelType
+from mods.models import ConfigurationItem, ModelType, ModelTypeProperty
 from mods.persistence import Persistence
 
 
 class TestPersistence:
     """Test suite for persistence.py"""
 
-    def test_persistence(self):
+    def test_configuration_item_persistence(self):
         """
         Test the Persistence class for saving and retrieving ConfigurationItem instances.
         """
         logger = LoggingConfig().get_logger()
-        logger.info("Starting test_persistence")
+        logger.info("Starting test_configuration_item_persistence")
 
         # Initialize Persistence with a DuckDB database for testing
         duckdb_path = "test_data.db"
@@ -47,7 +47,7 @@ class TestPersistence:
         saved_model = persistence.save(model)
 
         # Retrieve the model by ID
-        retrieved_model = persistence.get_by_id(str(saved_model.id))
+        retrieved_model = persistence.get_by_id(ConfigurationItem, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
         assert retrieved_model.name == "Persistent Model"
@@ -61,7 +61,7 @@ class TestPersistence:
 
         # Retrieve all models
         found_id = False
-        all_models = persistence.get_all()
+        all_models = persistence.get_all(ConfigurationItem)
         for model in all_models:
             logger.info(f"Model ID: {model.id}, Name: {model.name}")
             if model.id == saved_model.id:
@@ -73,8 +73,53 @@ class TestPersistence:
         for model in all_models:
             persistence.delete(model)
 
-        assert len(persistence.get_all()) == 0, (
+        assert len(persistence.get_all(ConfigurationItem)) == 0, (
             "Database should be empty after deletions"
         )
 
-        logger.info("test_persistence completed successfully")
+        logger.info("test_configuration_item_persistence completed successfully")
+
+    def test_model_type_property_persistence(self):
+        """
+        Test the Persistence class for saving and retrieving ModelTypeProperty instances.
+        """
+        logger = LoggingConfig().get_logger()
+        logger.info("Starting test_model_type_property_persistence")
+
+        # Initialize Persistence with a DuckDB database for testing
+        duckdb_path = "test_data.db"
+        if os.path.exists(duckdb_path):
+            os.remove(duckdb_path)
+        persistence = Persistence("duckdb:///" + duckdb_path)
+        persistence.create_tables()
+
+        # Create a ModelTypeProperty instance
+        model = ModelTypeProperty(
+            model_type=ModelType.SOFTWARE,
+            property_key="version",
+            property_value="1.0.0",
+        )
+
+        # Save the model to the database
+        saved_model = persistence.save(model)
+
+        # Retrieve the model by ID
+        retrieved_model = persistence.get_by_id(ModelTypeProperty, str(saved_model.id))
+        assert retrieved_model is not None
+        assert retrieved_model.id == saved_model.id
+        assert retrieved_model.property_key == "version"
+        assert retrieved_model.property_value == "1.0.0"
+
+        all_models = persistence.get_all(ModelTypeProperty)
+        assert len(all_models) == 1, (
+            "There should be exactly one ModelTypeProperty in the database"
+        )
+        logger.info(f"Total models in database: {len(all_models)}")
+        for model in all_models:
+            persistence.delete(model)
+
+        assert len(persistence.get_all(ModelTypeProperty)) == 0, (
+            "Database should be empty after deletions"
+        )
+
+        logger.info("test_model_type_property_persistence completed successfully")

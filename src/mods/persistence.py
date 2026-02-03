@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import datetime as dt
+from typing import TypeVar
 
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -19,6 +20,8 @@ from mods.logging_config import LoggingConfig
 from mods.models import ConfigurationItem
 
 logger = LoggingConfig().get_logger()
+
+T = TypeVar("T", bound=SQLModel)
 
 
 class Persistence:
@@ -41,60 +44,69 @@ class Persistence:
         """Create and return a new database session."""
         return Session(self.engine)
 
-    def save(self, model: ConfigurationItem) -> ConfigurationItem:
+    def save(self, model: T) -> T:
         """
-        Save a ConfigurationItem instance to the database.
-        :param model: The ConfigurationItem instance to save.
+        Save a SQLModel instance to the database.
+        :param model: The SQLModel instance to save.
+        :return: The saved model instance.
         """
         with Session(self.engine) as session:
-            model.last_modified = dt.datetime.now(tz=ConfigurationItem.get_timezone())
+            if hasattr(model, "last_modified"):
+                model.last_modified = dt.datetime.now(
+                    tz=ConfigurationItem.get_timezone()
+                )
             merged_model = session.merge(model)
             session.commit()
             session.refresh(merged_model)
-            logger.info(f"Saved model with id: {merged_model.id}")
+            logger.info(
+                f"Saved model with id: {getattr(merged_model, 'id', 'unknown')}"
+            )
             return merged_model
 
-    def get_by_id(self, model_id: str) -> ConfigurationItem | None:
+    def get_by_id(self, model_class: type[T], model_id: str) -> T | None:
         """
-        Retrieve a ConfigurationItem by its ID.
-        :param model_id: The ID of the ConfigurationItem to retrieve.
+        Retrieve a model instance by its ID.
+        :param model_class: The model class to query.
+        :param model_id: The ID of the model to retrieve.
+        :return: The model instance or None if not found.
         """
         with Session(self.engine) as session:
-            instance = session.get(ConfigurationItem, model_id)
+            instance = session.get(model_class, model_id)
             if instance is not None:
-                # Detach the instance so it can be safely used after the session closes.
                 session.expunge(instance)
             return instance
 
-    def get_all(self) -> list[ConfigurationItem]:
+    def get_all(self, model_class: type[T]) -> list[T]:
         """
-        Retrieve all ConfigurationItem instances.
-        :return: List of all ConfigurationItem instances.
+        Retrieve all instances of the specified model class.
+        :param model_class: The model class to query.
+        :return: List of all model instances.
         """
         with Session(self.engine) as session:
-            statement = select(ConfigurationItem)
+            statement = select(model_class)
             result = list(session.exec(statement).all())
             for instance in result:
                 session.expunge(instance)
             return result
 
-    def delete(self, model: ConfigurationItem) -> None:
+    def delete(self, model: SQLModel) -> None:
         """
-        Delete a ConfigurationItem instance from the database.
-        :param model: The ConfigurationItem instance to delete.
+        Delete a SQLModel instance from the database.
+        :param model: The SQLModel instance to delete.
         """
         with Session(self.engine) as session:
             session.delete(model)
             session.commit()
-            logger.info(f"Deleted model with id: {model.id}")
+            logger.info(f"Deleted model with id: {getattr(model, 'id', 'unknown')}")
 
-    def delete_by_id(self, model_id: str) -> None:
+    def delete_by_id(self, model_class: type[SQLModel], model_id: str) -> None:
         """
-        Delete a ConfigurationItem by its ID.
-        :param model_id: The ID of the ConfigurationItem to delete.
+        Delete a model instance by its ID.
+        :param model_class: The model class to query.
+        :param model_id: The ID of the model to delete.
         """
         with Session(self.engine) as session:
-            model = session.get(ConfigurationItem, model_id)
+            model = session.get(model_class, model_id)
             if model:
                 session.delete(model)
                 session.commit()
