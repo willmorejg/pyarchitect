@@ -48,7 +48,7 @@ pythonpath = ["src"]
 write = true
 exclude = "**/.github/**,**/.pytest_cache/**,**/__pycache__/**,**/.ruff_cache/**,**/.venv/**,**/vscode/**,**/logs/**"
 strip-whitespaces = true
-split-summary-body = false
+split-summary-body = true
 
 [tool.ruff]
 # Set line length
