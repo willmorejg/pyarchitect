@@ -19,12 +19,10 @@ logger = LoggingConfig().get_logger()
 
 
 class TestMappers:
-    """Test suite for mappers.py"""
+    """Test suite for mappers.py."""
 
     def test_model_to_dataframe_mapper(self):
-        """
-        Test the ModelToDataframeMapper functionality.
-        """
+        """Test the ModelToDataframeMapper functionality."""
         logger.info("Starting test_model_to_dataframe_mapper")
 
         # set up test model instances

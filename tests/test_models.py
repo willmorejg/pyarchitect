@@ -18,12 +18,10 @@ logger = LoggingConfig().logger
 
 
 class TestModels:
-    """Test suite for models.py"""
+    """Test suite for models.py."""
 
     def test_model_type_enum(self):
-        """
-        Test the ModelType enum.
-        """
+        """Test the ModelType enum."""
         logger.info("Starting test_model_type_enum")
 
         assert ModelType.HARDWARE.value == "hardware"
@@ -35,9 +33,7 @@ class TestModels:
         logger.info("Completed test_model_type_enum successfully")
 
     def test_configuration_item(self):
-        """
-        Test the ConfigurationItem creation and attributes.
-        """
+        """Test the ConfigurationItem creation and attributes."""
         logger.info("Starting test_configuration_item")
 
         # set up test values
@@ -75,9 +71,7 @@ class TestModels:
         logger.info("Completed test_configuration_item successfully")
 
     def test_model_type_property(self):
-        """
-        Test the ModelTypeProperty creation and attributes.
-        """
+        """Test the ModelTypeProperty creation and attributes."""
         logger.info("Starting test_model_type_property")
 
         model_type = ModelType.DATABASE

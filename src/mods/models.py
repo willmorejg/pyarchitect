@@ -55,12 +55,16 @@ class PydanticListJSON(TypeDecorator):
         return list
 
     def process_literal_param(self, value: list | None, dialect: Any) -> str:  # noqa: ARG002
-        """
-        Process a literal parameter value for inline rendering in SQL.
+        """Process a literal parameter value for inline rendering in SQL.
+
         Convert PropertyModel instances to dicts before storing.
-        :param value: The value to be processed.
-        :param dialect: The SQL dialect in use.
-        :return: The processed value as a JSON string.
+
+        Args:
+            value: The value to be processed.
+            dialect: The SQL dialect in use.
+
+        Returns:
+            The processed value as a JSON string.
         """
         if value is None:
             return json.dumps(None)
@@ -70,11 +74,14 @@ class PydanticListJSON(TypeDecorator):
         return json.dumps(processed)
 
     def process_bind_param(self, value: list | None, dialect: Any) -> list | None:
-        """
-        Convert PropertyModel instances to dicts before storing.
-        :param value: The value to be processed.
-        :param dialect: The SQL dialect in use.
-        :return: The processed value.
+        """Convert PropertyModel instances to dicts before storing.
+
+        Args:
+            value: The value to be processed.
+            dialect: The SQL dialect in use.
+
+        Returns:
+            The processed value.
         """
         if value is None:
             return value
@@ -83,20 +90,20 @@ class PydanticListJSON(TypeDecorator):
         ]
 
     def process_result_value(self, value: list | None, dialect: Any) -> list | None:
-        """
-        Return raw list from database (rehydration happens via model_validator).
-        :param value: The value retrieved from the database.
-        :param dialect: The SQL dialect in use.
-        :return: The raw value.
+        """Return raw list from database (rehydration happens via model_validator).
+
+        Args:
+            value: The value retrieved from the database.
+            dialect: The SQL dialect in use.
+
+        Returns:
+            The raw value.
         """
         return value
 
 
 class ConfigurationItem(SQLModel, table=True):
-    """
-    Model representing a configuration item in the system.
-    :param table: Indicates that this model corresponds to a database table.
-    """
+    """Model representing a configuration item in the system."""
 
     __tablename__: str = "configuration_items"  # type: ignore[assignment]
 
@@ -142,15 +149,21 @@ class ConfigurationItem(SQLModel, table=True):
 
     def add_property(self, key: str, value: Any) -> None:
         """Adds a property to the model.
-        :param key: The property key.
-        :param value: The property value.
+
+        Args:
+            key: The property key.
+            value: The property value.
         """
         self.properties.append(PropertyModel(key=key, value=value))
 
     def get_property(self, key: str) -> Any | None:
         """Retrieves a property value by key.
-        :param key: The property key.
-        :return: The property value or None if not found.
+
+        Args:
+            key: The property key.
+
+        Returns:
+            The property value or None if not found.
         """
         for prop in self.properties:
             # Handle both PropertyModel instances and dicts (from DB load)
@@ -163,25 +176,24 @@ class ConfigurationItem(SQLModel, table=True):
 
     @staticmethod
     def get_timezone() -> ZoneInfo:
-        """
-        Get the timezone used by the ConfigurationItem model.
-        :return: The ZoneInfo object representing the timezone.
+        """Get the timezone used by the ConfigurationItem model.
+
+        Returns:
+            The ZoneInfo object representing the timezone.
         """
         return TIMEZONE
 
     def __str__(self) -> str:
-        """
-        Return the JSON representation of the model.
-        :return: JSON string of the model.
+        """Return the JSON representation of the model.
+
+        Returns:
+            JSON string of the model.
         """
         return self.model_dump_json()
 
 
 class ModelTypeProperty(SQLModel, table=True):
-    """
-    Model representing properties associated with a specific model type.
-    :param table: Indicates that this model corresponds to a database table.
-    """
+    """Model representing properties associated with a specific model type."""
 
     __tablename__: str = "model_type_properties"  # type: ignore[assignment]
 
@@ -194,8 +206,9 @@ class ModelTypeProperty(SQLModel, table=True):
     property_value: str = Field(sa_column=Column(String, nullable=False))
 
     def __str__(self) -> str:
-        """
-        Return the JSON representation of the model.
-        :return: JSON string of the model.
+        """Return the JSON representation of the model.
+
+        Returns:
+            JSON string of the model.
         """
         return self.model_dump_json()
