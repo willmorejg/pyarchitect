@@ -38,6 +38,7 @@ RESET = "\033[0m"
 
 class LoggingConfig:
     """Configuration for structlog logging."""
+
     _instance = None
     _initialized = False
     _lock = threading.Lock()

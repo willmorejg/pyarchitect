@@ -20,7 +20,9 @@ from .logging_config import LoggingConfig
 logger = LoggingConfig().get_logger()
 
 
-def _flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = ".") -> dict[str, Any]:
+def _flatten_dict(
+    d: dict[str, Any], parent_key: str = "", sep: str = "."
+) -> dict[str, Any]:
     """
     Recursively flattens a nested dictionary.
     :param d: The dictionary to flatten.
@@ -33,7 +35,13 @@ def _flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = ".") -> di
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, dict):
             items.extend(_flatten_dict(v, new_key, sep).items())
-        elif isinstance(v, list) and v and isinstance(v[0], dict) and "key" in v[0] and "value" in v[0]:
+        elif (
+            isinstance(v, list)
+            and v
+            and isinstance(v[0], dict)
+            and "key" in v[0]
+            and "value" in v[0]
+        ):
             # Handle list of key-value property dicts
             for item in v:
                 prop_key = f"{new_key}{sep}{item['key']}"

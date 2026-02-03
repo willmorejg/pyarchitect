@@ -73,6 +73,8 @@ class TestPersistence:
         for model in all_models:
             persistence.delete(model)
 
-        assert len(persistence.get_all()) == 0, "Database should be empty after deletions"
+        assert len(persistence.get_all()) == 0, (
+            "Database should be empty after deletions"
+        )
 
         logger.info("test_persistence completed successfully")
