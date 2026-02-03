@@ -111,7 +111,9 @@ class TestPersistence:
         assert retrieved_model.property_value == "1.0.0"
 
         all_models = persistence.get_all(ModelTypeProperty)
-        assert len(all_models) == 1, "There should be exactly one ModelTypeProperty in the database"
+        assert len(all_models) == 1, (
+            "There should be exactly one ModelTypeProperty in the database"
+        )
         logger.info(f"Total models in database: {len(all_models)}")
         for model in all_models:
             persistence.delete(model)
