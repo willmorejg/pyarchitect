@@ -16,7 +16,14 @@ __version__ = "0.1.0"
 
 from .logging_config import LoggingConfig
 from .mappers import ModelToDataframeMapper
-from .models import ConfigurationItem, ModelType
+from .models import ConfigurationItem, ModelType, ModelTypeProperty
 from .persistence import Persistence
 
-__all__ = ["ModelType", "ConfigurationItem", "LoggingConfig", "ModelToDataframeMapper", "Persistence"]
+__all__ = [
+    "ModelType",
+    "ConfigurationItem",
+    "ModelTypeProperty",
+    "LoggingConfig",
+    "ModelToDataframeMapper",
+    "Persistence",
+]

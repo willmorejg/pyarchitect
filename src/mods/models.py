@@ -54,9 +54,7 @@ class PydanticListJSON(TypeDecorator):
         """Return the Python type object expected for values of this type."""
         return list
 
-    def process_literal_param(
-        self, value: list | None, dialect: Any
-    ) -> str:  # noqa: ARG002
+    def process_literal_param(self, value: list | None, dialect: Any) -> str:  # noqa: ARG002
         """
         Process a literal parameter value for inline rendering in SQL.
         Convert PropertyModel instances to dicts before storing.
@@ -170,6 +168,30 @@ class ConfigurationItem(SQLModel, table=True):
         :return: The ZoneInfo object representing the timezone.
         """
         return TIMEZONE
+
+    def __str__(self) -> str:
+        """
+        Return the JSON representation of the model.
+        :return: JSON string of the model.
+        """
+        return self.model_dump_json()
+
+
+class ModelTypeProperty(SQLModel, table=True):
+    """
+    Model representing properties associated with a specific model type.
+    :param table: Indicates that this model corresponds to a database table.
+    """
+
+    __tablename__: str = "model_type_properties"  # type: ignore[assignment]
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), primary_key=True),
+    )
+    model_type: ModelType = Field(sa_column=Column(String, nullable=False))
+    property_key: str = Field(sa_column=Column(String, nullable=False))
+    property_value: str = Field(sa_column=Column(String, nullable=False))
 
     def __str__(self) -> str:
         """
