@@ -46,7 +46,7 @@ pythonpath = ["src"]
 
 [tool.pydocstringformatter]
 write = true
-exclude = "**/my_dir/**,**/my_other_dir/**"
+exclude = "**/.github/**,**/.pytest_cache/**,**/__pycache__/**,**/.ruff_cache/**,**/.venv/**,**/vscode/**,**/logs/**"
 strip-whitespaces = true
 split-summary-body = false
 
