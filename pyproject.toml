@@ -34,6 +34,7 @@ dev = [
     "ipython>=9.9.0",
     "isort>=7.0.0",
     "mypy>=1.19.1",
+    "pydocstringformatter>=0.7.5",
     "pyright>=1.1.408",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
@@ -42,6 +43,12 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.pydocstringformatter]
+write = true
+exclude = "**/.github/**,**/.pytest_cache/**,**/__pycache__/**,**/.ruff_cache/**,**/.venv/**,**/vscode/**,**/logs/**"
+strip-whitespaces = true
+split-summary-body = true
 
 [tool.ruff]
 # Set line length
@@ -68,15 +75,23 @@ select = [
     "UP",   # pyupgrade
     "B",    # flake8-bugbear
     "I",    # isort
+    "D",    # pydocstyle (docstring conventions)
 ]
 # Ignore specific rules
 ignore = [
     "E501",  # line too long
     "B008",  # do not perform function calls in argument defaults
+    "D100",  # missing docstring in public module
+    "D104",  # missing docstring in public package
 ]
+
 # Allow fixing specific rules
 fixable = ["ALL"]
 unfixable = []
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
 [tool.ruff.format]
 # Use double quotes for strings
 quote-style = "double"
@@ -86,6 +101,8 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 # Auto-detect line ending
 line-ending = "auto"
+# Enable code formatting in docstrings
+docstring-code-format = true
 
 [tool.bumpver]
 current_version = "0.1.0"

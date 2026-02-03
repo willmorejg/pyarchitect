@@ -38,6 +38,7 @@ RESET = "\033[0m"
 
 class LoggingConfig:
     """Configuration for structlog logging."""
+
     _instance = None
     _initialized = False
     _lock = threading.Lock()
@@ -119,12 +120,13 @@ class LoggingConfig:
         self.logger.debug("Logging is configured.")
 
     def custom_console_renderer(self, colors: bool = True) -> Processor:
-        """
-        Custom console renderer for structlog.
+        """Custom console renderer for structlog.
+
         Args:
-            colors (bool): Whether to use colors in the output.
+            colors: Whether to use colors in the output.
+
         Returns:
-            Processor: A structlog processor function.
+            A structlog processor function.
         """
 
         def renderer(_, __, event_dict: EventDict) -> str:
@@ -159,14 +161,15 @@ class LoggingConfig:
         return renderer
 
     def add_callsite_info(self, _, __, event_dict: EventDict) -> EventDict:
-        """
-        Inspect the call stack to find the originating caller info.
+        """Inspect the call stack to find the originating caller info.
+
         Args:
             _ : Unused.
             __ : Unused.
-            event_dict (EventDict): The event dictionary to update.
+            event_dict: The event dictionary to update.
+
         Returns:
-            EventDict: The updated event dictionary with callsite info.
+            The updated event dictionary with callsite info.
         """
         frame = inspect.currentframe()
         if frame:
@@ -184,10 +187,10 @@ class LoggingConfig:
         return event_dict
 
     def get_logger(self) -> structlog.stdlib.BoundLogger:
-        """
-        Returns the configured structlog logger.
+        """Returns the configured structlog logger.
+
         Returns:
-            BoundLogger: The structlog logger instance.
+            The structlog logger instance.
         """
         if not self._initialized:
             self.init_config()

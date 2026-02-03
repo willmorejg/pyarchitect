@@ -13,41 +13,122 @@
 # limitations under the License.
 import os
 
+import pytest
+
 from mods.logging_config import LoggingConfig
-from mods.models import ConfigurationItem, ModelType
+from mods.models import (
+    DatabaseItem,
+    HardwareItem,
+    ModelType,
+    ModelTypeProperty,
+    PersonItem,
+    ProcessItem,
+    SoftwareItem,
+)
 from mods.persistence import Persistence
+
+logger = LoggingConfig().get_logger()
+
+
+@pytest.fixture(scope="class")
+def persistence():
+    """Create a shared Persistence instance for all tests in the class.
+
+    Set KEEP_TEST_DB=1 environment variable to preserve the database file after tests.
+    """
+    duckdb_path = "test_data.db"
+    if os.path.exists(duckdb_path):
+        os.remove(duckdb_path)
+    persistence = Persistence("duckdb:///" + duckdb_path)
+    persistence.create_tables()
+    yield persistence
+    # Cleanup after all tests unless KEEP_TEST_DB is set
+    if not os.environ.get("KEEP_TEST_DB") and os.path.exists(duckdb_path):
+        os.remove(duckdb_path)
 
 
 class TestPersistence:
-    """Test suite for persistence.py"""
+    """Test suite for persistence.py."""
 
-    def test_persistence(self):
-        """
-        Test the Persistence class for saving and retrieving ConfigurationItem instances.
-        """
-        logger = LoggingConfig().get_logger()
-        logger.info("Starting test_persistence")
+    def test_hardware_item_persistence(self, persistence):
+        """Test saving and retrieving HardwareItem instances."""
+        logger.info("Starting test_hardware_item_persistence")
 
-        # Initialize Persistence with a DuckDB database for testing
-        duckdb_path = "test_data.db"
-        if os.path.exists(duckdb_path):
-            os.remove(duckdb_path)
-        persistence = Persistence("duckdb:///" + duckdb_path)
-        persistence.create_tables()
+        model = HardwareItem(
+            name="Production Server",
+            hardware_type="server",
+            is_cloud=False,
+            hardware_vendor="Dell",
+        )
+        model.add_property("cpu", "Intel Xeon")
+        model.add_property("ram", "128GB")
 
-        # Create a ConfigurationItem instance
-        model = ConfigurationItem(
+        saved_model = persistence.save(model)
+
+        retrieved_model = persistence.get_by_id(HardwareItem, str(saved_model.id))
+        assert retrieved_model is not None
+        assert retrieved_model.id == saved_model.id
+        assert retrieved_model.name == "Production Server"
+        assert retrieved_model.hardware_type == "server"
+        assert retrieved_model.hardware_vendor == "Dell"
+        assert retrieved_model.get_property("cpu") == "Intel Xeon"
+
+        for item in persistence.get_all(HardwareItem):
+            persistence.delete(item)
+
+        assert len(persistence.get_all(HardwareItem)) == 0
+
+        logger.info("test_hardware_item_persistence completed successfully")
+
+    def test_software_item_persistence(self, persistence):
+        """Test saving and retrieving SoftwareItem instances."""
+        logger.info("Starting test_software_item_persistence")
+
+        model = SoftwareItem(
+            name="Web Application",
+            software_type="application",
+            is_cloud=True,
+            is_internal=True,
+            software_vendor="Internal Development",
+        )
+        model.add_property("version", "2.0.0")
+        model.add_property("language", "Python")
+
+        saved_model = persistence.save(model)
+
+        retrieved_model = persistence.get_by_id(SoftwareItem, str(saved_model.id))
+        assert retrieved_model is not None
+        assert retrieved_model.id == saved_model.id
+        assert retrieved_model.name == "Web Application"
+        assert retrieved_model.software_type == "application"
+        assert retrieved_model.is_cloud is True
+        assert retrieved_model.is_internal is True
+        assert retrieved_model.get_property("version") == "2.0.0"
+
+        for item in persistence.get_all(SoftwareItem):
+            persistence.delete(item)
+
+        assert len(persistence.get_all(SoftwareItem)) == 0
+
+        logger.info("test_software_item_persistence completed successfully")
+
+    def test_database_item_persistence(self, persistence):
+        """Test saving and retrieving DatabaseItem instances."""
+        logger.info("Starting test_database_item_persistence")
+
+        model = DatabaseItem(
             name="Persistent Model",
-            model_type=ModelType.HARDWARE,
+            database_instance="prod-db-01",
+            database_name="production_db",
+            database_schema="public",
+            database_vendor="PostgreSQL",
         )
         model.add_property("gpu", "NVIDIA RTX 3080")
         model.add_property("storage", "1TB SSD")
 
-        # Save the model to the database
         saved_model = persistence.save(model)
 
-        # Retrieve the model by ID
-        retrieved_model = persistence.get_by_id(str(saved_model.id))
+        retrieved_model = persistence.get_by_id(DatabaseItem, str(saved_model.id))
         assert retrieved_model is not None
         assert retrieved_model.id == saved_model.id
         assert retrieved_model.name == "Persistent Model"
@@ -59,20 +140,87 @@ class TestPersistence:
         assert updated_model.get_property("ram") == "32GB"
         assert updated_model.get_property("case") == "laptop"
 
-        # Retrieve all models
-        found_id = False
-        all_models = persistence.get_all()
-        for model in all_models:
-            logger.info(f"Model ID: {model.id}, Name: {model.name}")
-            if model.id == saved_model.id:
-                found_id = True
+        all_models = persistence.get_all(DatabaseItem)
+        assert any(m.id == saved_model.id for m in all_models)
 
-        assert found_id, "Saved model ID should be in the list of all models"
+        for item in persistence.get_all(DatabaseItem):
+            persistence.delete(item)
 
-        logger.info(f"Total models in database: {len(all_models)}")
-        for model in all_models:
-            persistence.delete(model)
+        assert len(persistence.get_all(DatabaseItem)) == 0
 
-        assert len(persistence.get_all()) == 0, "Database should be empty after deletions"
+        logger.info("test_database_item_persistence completed successfully")
 
-        logger.info("test_persistence completed successfully")
+    def test_process_item_persistence(self, persistence):
+        """Test saving and retrieving ProcessItem instances."""
+        logger.info("Starting test_process_item_persistence")
+
+        model = ProcessItem(
+            name="Data Pipeline",
+        )
+        model.add_property("schedule", "daily")
+        model.add_property("owner", "data-team")
+
+        saved_model = persistence.save(model)
+
+        retrieved_model = persistence.get_by_id(ProcessItem, str(saved_model.id))
+        assert retrieved_model is not None
+        assert retrieved_model.id == saved_model.id
+        assert retrieved_model.name == "Data Pipeline"
+        assert retrieved_model.get_property("schedule") == "daily"
+
+        for item in persistence.get_all(ProcessItem):
+            persistence.delete(item)
+
+        assert len(persistence.get_all(ProcessItem)) == 0
+
+        logger.info("test_process_item_persistence completed successfully")
+
+    def test_person_item_persistence(self, persistence):
+        """Test saving and retrieving PersonItem instances."""
+        logger.info("Starting test_person_item_persistence")
+
+        model = PersonItem(
+            name="John Doe",
+        )
+        model.add_property("email", "john.doe@example.com")
+        model.add_property("department", "Engineering")
+
+        saved_model = persistence.save(model)
+
+        retrieved_model = persistence.get_by_id(PersonItem, str(saved_model.id))
+        assert retrieved_model is not None
+        assert retrieved_model.id == saved_model.id
+        assert retrieved_model.name == "John Doe"
+        assert retrieved_model.get_property("email") == "john.doe@example.com"
+
+        for item in persistence.get_all(PersonItem):
+            persistence.delete(item)
+
+        assert len(persistence.get_all(PersonItem)) == 0
+
+        logger.info("test_person_item_persistence completed successfully")
+
+    def test_model_type_property_persistence(self, persistence):
+        """Test saving and retrieving ModelTypeProperty instances."""
+        logger.info("Starting test_model_type_property_persistence")
+
+        model = ModelTypeProperty(
+            model_type=ModelType.SOFTWARE,
+            property_key="version",
+            property_value="1.0.0",
+        )
+
+        saved_model = persistence.save(model)
+
+        retrieved_model = persistence.get_by_id(ModelTypeProperty, str(saved_model.id))
+        assert retrieved_model is not None
+        assert retrieved_model.id == saved_model.id
+        assert retrieved_model.property_key == "version"
+        assert retrieved_model.property_value == "1.0.0"
+
+        for item in persistence.get_all(ModelTypeProperty):
+            persistence.delete(item)
+
+        assert len(persistence.get_all(ModelTypeProperty)) == 0
+
+        logger.info("test_model_type_property_persistence completed successfully")

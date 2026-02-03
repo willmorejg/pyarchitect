@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import datetime as dt
+from typing import TypeVar
 
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -20,14 +21,17 @@ from mods.models import ConfigurationItem
 
 logger = LoggingConfig().get_logger()
 
+T = TypeVar("T", bound=SQLModel)
+
 
 class Persistence:
     """Class for persisting data to a SQL database using SQLModel."""
 
     def __init__(self, db_url: str):
-        """
-        Initialize the Persistence class with a database URL.
-        :param db_url: Database connection URL (e.g., 'duckdb:///./data.db').
+        """Initialize the Persistence class with a database URL.
+
+        Args:
+            db_url: Database connection URL (e.g., 'duckdb:///./data.db').
         """
         self.engine = create_engine(db_url)
         logger.info("Database engine created.")
@@ -41,60 +45,80 @@ class Persistence:
         """Create and return a new database session."""
         return Session(self.engine)
 
-    def save(self, model: ConfigurationItem) -> ConfigurationItem:
-        """
-        Save a ConfigurationItem instance to the database.
-        :param model: The ConfigurationItem instance to save.
+    def save(self, model: T) -> T:
+        """Save a SQLModel instance to the database.
+
+        Args:
+            model: The SQLModel instance to save.
+
+        Returns:
+            The saved model instance.
         """
         with Session(self.engine) as session:
-            model.last_modified = dt.datetime.now(tz=ConfigurationItem.get_timezone())
+            if hasattr(model, "last_modified"):
+                model.last_modified = dt.datetime.now(
+                    tz=ConfigurationItem.get_timezone()
+                )
             merged_model = session.merge(model)
             session.commit()
             session.refresh(merged_model)
-            logger.info(f"Saved model with id: {merged_model.id}")
+            logger.info(
+                f"Saved model with id: {getattr(merged_model, 'id', 'unknown')}"
+            )
             return merged_model
 
-    def get_by_id(self, model_id: str) -> ConfigurationItem | None:
-        """
-        Retrieve a ConfigurationItem by its ID.
-        :param model_id: The ID of the ConfigurationItem to retrieve.
+    def get_by_id(self, model_class: type[T], model_id: str) -> T | None:
+        """Retrieve a model instance by its ID.
+
+        Args:
+            model_class: The model class to query.
+            model_id: The ID of the model to retrieve.
+
+        Returns:
+            The model instance or None if not found.
         """
         with Session(self.engine) as session:
-            instance = session.get(ConfigurationItem, model_id)
+            instance = session.get(model_class, model_id)
             if instance is not None:
-                # Detach the instance so it can be safely used after the session closes.
                 session.expunge(instance)
             return instance
 
-    def get_all(self) -> list[ConfigurationItem]:
-        """
-        Retrieve all ConfigurationItem instances.
-        :return: List of all ConfigurationItem instances.
+    def get_all(self, model_class: type[T]) -> list[T]:
+        """Retrieve all instances of the specified model class.
+
+        Args:
+            model_class: The model class to query.
+
+        Returns:
+            List of all model instances.
         """
         with Session(self.engine) as session:
-            statement = select(ConfigurationItem)
+            statement = select(model_class)
             result = list(session.exec(statement).all())
             for instance in result:
                 session.expunge(instance)
             return result
 
-    def delete(self, model: ConfigurationItem) -> None:
-        """
-        Delete a ConfigurationItem instance from the database.
-        :param model: The ConfigurationItem instance to delete.
+    def delete(self, model: SQLModel) -> None:
+        """Delete a SQLModel instance from the database.
+
+        Args:
+            model: The SQLModel instance to delete.
         """
         with Session(self.engine) as session:
             session.delete(model)
             session.commit()
-            logger.info(f"Deleted model with id: {model.id}")
+            logger.info(f"Deleted model with id: {getattr(model, 'id', 'unknown')}")
 
-    def delete_by_id(self, model_id: str) -> None:
-        """
-        Delete a ConfigurationItem by its ID.
-        :param model_id: The ID of the ConfigurationItem to delete.
+    def delete_by_id(self, model_class: type[SQLModel], model_id: str) -> None:
+        """Delete a model instance by its ID.
+
+        Args:
+            model_class: The model class to query.
+            model_id: The ID of the model to delete.
         """
         with Session(self.engine) as session:
-            model = session.get(ConfigurationItem, model_id)
+            model = session.get(model_class, model_id)
             if model:
                 session.delete(model)
                 session.commit()

@@ -20,20 +20,31 @@ from .logging_config import LoggingConfig
 logger = LoggingConfig().get_logger()
 
 
-def _flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = ".") -> dict[str, Any]:
-    """
-    Recursively flattens a nested dictionary.
-    :param d: The dictionary to flatten.
-    :param parent_key: The base key string for nested keys.
-    :param sep: The separator between nested keys.
-    :return: A flattened dictionary.
+def _flatten_dict(
+    d: dict[str, Any], parent_key: str = "", sep: str = "."
+) -> dict[str, Any]:
+    """Recursively flattens a nested dictionary.
+
+    Args:
+        d: The dictionary to flatten.
+        parent_key: The base key string for nested keys.
+        sep: The separator between nested keys.
+
+    Returns:
+        A flattened dictionary.
     """
     items: list[tuple[str, Any]] = []
     for k, v in d.items():
         new_key = f"{parent_key}{sep}{k}" if parent_key else k
         if isinstance(v, dict):
             items.extend(_flatten_dict(v, new_key, sep).items())
-        elif isinstance(v, list) and v and isinstance(v[0], dict) and "key" in v[0] and "value" in v[0]:
+        elif (
+            isinstance(v, list)
+            and v
+            and isinstance(v[0], dict)
+            and "key" in v[0]
+            and "value" in v[0]
+        ):
             # Handle list of key-value property dicts
             for item in v:
                 prop_key = f"{new_key}{sep}{item['key']}"
@@ -46,16 +57,18 @@ def _flatten_dict(d: dict[str, Any], parent_key: str = "", sep: str = ".") -> di
 
 
 class ModelToDataframeMapper:
-    """
-    A class responsible for mapping model instances to dataframes.
-    """
+    """A class responsible for mapping model instances to dataframes."""
 
     def marshal(self, model_instances: list[object]) -> pd.DataFrame:
-        """
-        Marshals model instances to a dataframe with flattened JSON structure.
+        """Marshals model instances to a dataframe with flattened JSON structure.
+
         Nested dicts become dot-notation columns (e.g., 'properties.cpu').
-        :param model_instances: The model instances to be mapped.
-        :return: A dataframe representing the model instances with flattened columns.
+
+        Args:
+            model_instances: The model instances to be mapped.
+
+        Returns:
+            A dataframe representing the model instances with flattened columns.
         """
         model_dicts = [m.model_dump() for m in model_instances]
         logger.info("Marshalled model instances to dicts", model_dicts=model_dicts)
