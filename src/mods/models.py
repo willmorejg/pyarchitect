@@ -19,7 +19,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from pydantic import model_validator
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, String
 from sqlalchemy.types import JSON, TypeDecorator
 from sqlmodel import Field, SQLModel
 
@@ -102,38 +102,24 @@ class PydanticListJSON(TypeDecorator):
         return value
 
 
-class ConfigurationItem(SQLModel, table=True):
-    """Model representing a configuration item in the system."""
+class ConfigurationItem(SQLModel):
+    """Base model representing a configuration item in the system."""
 
-    __tablename__: str = "configuration_items"  # type: ignore[assignment]
-
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), primary_key=True),
-    )
-    name: str = Field(sa_column=Column(String, nullable=False))
-    description: str | None = Field(
-        default=None, sa_column=Column(String, nullable=True)
-    )
-    model_type: ModelType = Field(sa_column=Column(String, nullable=False))
-    revision: int = Field(default=1, sa_column=Column(Integer, nullable=False))
-    is_active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
-    tags: list[str] = Field(
-        default_factory=list, sa_column=Column(JSON, nullable=False)
-    )
+    name: str
+    description: str | None = None
+    model_type: ModelType
+    revision: int = 1
+    is_active: bool = True
+    tags: list[str] = Field(default_factory=list, sa_type=JSON)
     properties: list[PropertyModel] = Field(
-        default_factory=list, sa_column=Column(PydanticListJSON, nullable=False)
+        default_factory=list, sa_type=PydanticListJSON
     )
-    created: dt.datetime = Field(
-        default_factory=lambda: dt.datetime.now(TIMEZONE),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
-    )
-    created_by: str = Field(default="system", sa_column=Column(String, nullable=False))
+    created: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
+    created_by: str = "system"
     last_modified: dt.datetime = Field(
-        default_factory=lambda: dt.datetime.now(TIMEZONE),
-        sa_column=Column(DateTime(timezone=True), nullable=False),
+        default_factory=lambda: dt.datetime.now(TIMEZONE)
     )
-    modified_by: str = Field(default="system", sa_column=Column(String, nullable=False))
+    modified_by: str = "system"
 
     @model_validator(mode="after")
     def rehydrate_properties(self) -> "ConfigurationItem":
@@ -190,6 +176,93 @@ class ConfigurationItem(SQLModel, table=True):
             JSON string of the model.
         """
         return self.model_dump_json()
+
+
+class HardwareItem(ConfigurationItem, table=True):
+    """Model representing a hardware configuration item."""
+
+    __tablename__: str = "hardware_items"  # type: ignore[assignment]
+    __table_args__ = {"extend_existing": True}
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), primary_key=True),
+    )
+    model_type: ModelType = Field(
+        default=ModelType.HARDWARE, sa_column=Column(String, nullable=False)
+    )
+    hardware_type: str = Field(sa_column=Column(String, nullable=False))
+    is_cloud: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
+    hardware_vendor: str = Field(sa_column=Column(String, nullable=False))
+
+
+class SoftwareItem(ConfigurationItem, table=True):
+    """Model representing a software configuration item."""
+
+    __tablename__: str = "software_items"  # type: ignore[assignment]
+    __table_args__ = {"extend_existing": True}
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), primary_key=True),
+    )
+    model_type: ModelType = Field(
+        default=ModelType.SOFTWARE, sa_column=Column(String, nullable=False)
+    )
+    software_type: str = Field(sa_column=Column(String, nullable=False))
+    is_cloud: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
+    is_internal: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
+    software_vendor: str = Field(sa_column=Column(String, nullable=False))
+
+
+class DatabaseItem(ConfigurationItem, table=True):
+    """Model representing a database configuration item."""
+
+    __tablename__: str = "database_items"  # type: ignore[assignment]
+    __table_args__ = {"extend_existing": True}
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), primary_key=True),
+    )
+    model_type: ModelType = Field(
+        default=ModelType.DATABASE, sa_column=Column(String, nullable=False)
+    )
+    database_instance: str = Field(sa_column=Column(String, nullable=False))
+    database_name: str = Field(sa_column=Column(String, nullable=False))
+    database_schema: str = Field(sa_column=Column(String, nullable=False))
+    is_cloud: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
+    database_vendor: str = Field(sa_column=Column(String, nullable=False))
+
+
+class ProcessItem(ConfigurationItem, table=True):
+    """Model representing a process configuration item."""
+
+    __tablename__: str = "process_items"  # type: ignore[assignment]
+    __table_args__ = {"extend_existing": True}
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), primary_key=True),
+    )
+    model_type: ModelType = Field(
+        default=ModelType.PROCESS, sa_column=Column(String, nullable=False)
+    )
+
+
+class PersonItem(ConfigurationItem, table=True):
+    """Model representing a person configuration item."""
+
+    __tablename__: str = "person_items"  # type: ignore[assignment]
+    __table_args__ = {"extend_existing": True}
+
+    id: str = Field(
+        default_factory=lambda: str(uuid.uuid4()),
+        sa_column=Column(String(36), primary_key=True),
+    )
+    model_type: ModelType = Field(
+        default=ModelType.PERSON, sa_column=Column(String, nullable=False)
+    )
 
 
 class ModelTypeProperty(SQLModel, table=True):
