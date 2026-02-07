@@ -13,7 +13,9 @@
 # limitations under the License.
 from mods.logging_config import LoggingConfig
 from mods.models import (
+    CommunicationType,
     ConfigurationItem,
+    ConfigurationItemCommunication,
     DatabaseItem,
     HardwareItem,
     ModelType,
@@ -242,3 +244,91 @@ class TestModels:
 
         logger.info("Created PersonItem:", model=str(person_item))
         logger.info("Completed test_person_item successfully")
+
+    def test_communication_type_enum(self):
+        """Test the CommunicationType enum."""
+        logger.info("Starting test_communication_type_enum")
+
+        assert CommunicationType.API.value == "api"
+        assert CommunicationType.MESSAGE_QUEUE.value == "message_queue"
+        assert CommunicationType.FILE_TRANSFER.value == "file_transfer"
+        assert CommunicationType.OTHER.value == "other"
+
+        logger.info("Completed test_communication_type_enum successfully")
+
+    def test_add_communication(self):
+        """Test adding a communication between two configuration items."""
+        logger.info("Starting test_add_communication")
+
+        software = SoftwareItem(
+            name="Web App",
+            software_type="application",
+            is_cloud=True,
+            is_internal=True,
+            software_vendor="Internal",
+        )
+        database = DatabaseItem(
+            name="Prod DB",
+            database_instance="prod-01",
+            database_name="main_db",
+            database_schema="public",
+            database_vendor="PostgreSQL",
+        )
+
+        comm = software.add_communication(
+            target=database,
+            communication_type=CommunicationType.API,
+            description="REST API connection",
+        )
+
+        assert isinstance(comm, ConfigurationItemCommunication)
+        assert comm.source_id == software.id
+        assert comm.target_id == database.id
+        assert comm.communication_type == "api"
+        assert comm.description == "REST API connection"
+
+        # Source sees outgoing
+        assert len(software.outgoing_communications) == 1
+        assert len(software.incoming_communications) == 0
+
+        # get_communications returns all
+        all_comms = software.get_communications()
+        assert len(all_comms) == 1
+        assert all_comms[0].target_id == database.id
+
+        logger.info("Completed test_add_communication successfully")
+
+    def test_communication_model_dump(self):
+        """Test that model_dump includes communications."""
+        logger.info("Starting test_communication_model_dump")
+
+        software = SoftwareItem(
+            name="App",
+            software_type="service",
+            is_cloud=False,
+            is_internal=True,
+            software_vendor="Acme",
+        )
+        hardware = HardwareItem(
+            name="Server",
+            hardware_type="server",
+            is_cloud=False,
+            hardware_vendor="Dell",
+        )
+
+        software.add_communication(
+            target=hardware,
+            communication_type=CommunicationType.MESSAGE_QUEUE,
+        )
+
+        dump = software.model_dump()
+        assert "communications" in dump
+        assert len(dump["communications"]) == 1
+        assert dump["communications"][0]["communication_type"] == "message_queue"
+
+        # Item with no communications should not have the key
+        standalone = ProcessItem(name="Standalone Process")
+        dump2 = standalone.model_dump()
+        assert "communications" not in dump2
+
+        logger.info("Completed test_communication_model_dump successfully")

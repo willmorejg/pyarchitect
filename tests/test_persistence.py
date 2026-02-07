@@ -17,6 +17,8 @@ import pytest
 
 from mods.logging_config import LoggingConfig
 from mods.models import (
+    CommunicationType,
+    ConfigurationItemCommunication,
     DatabaseItem,
     HardwareItem,
     ModelType,
@@ -199,6 +201,107 @@ class TestPersistence:
         assert len(persistence.get_all(PersonItem)) == 0
 
         logger.info("test_person_item_persistence completed successfully")
+
+    def test_communication_persistence(self, persistence):
+        """Test saving and retrieving communication links between items."""
+        logger.info("Starting test_communication_persistence")
+
+        software = SoftwareItem(
+            name="Web App",
+            software_type="application",
+            is_cloud=True,
+            is_internal=True,
+            software_vendor="Internal Dev",
+        )
+        database = DatabaseItem(
+            name="Main DB",
+            database_instance="prod-01",
+            database_name="main_db",
+            database_schema="public",
+            database_vendor="PostgreSQL",
+        )
+
+        saved_software = persistence.save(software)
+        saved_database = persistence.save(database)
+
+        comm = ConfigurationItemCommunication(
+            source_id=saved_software.id,
+            target_id=saved_database.id,
+            communication_type=CommunicationType.API.value,
+            description="REST API connection",
+        )
+        saved_comm = persistence.save(comm)
+
+        # Retrieve and verify the communication persists
+        retrieved_comm = persistence.get_by_id(
+            ConfigurationItemCommunication, str(saved_comm.id)
+        )
+        assert retrieved_comm is not None
+        assert retrieved_comm.source_id == saved_software.id
+        assert retrieved_comm.target_id == saved_database.id
+        assert retrieved_comm.communication_type == "api"
+        assert retrieved_comm.description == "REST API connection"
+
+        # Retrieve software and verify communications are loaded
+        retrieved_software = persistence.get_by_id(
+            SoftwareItem, str(saved_software.id)
+        )
+        assert len(retrieved_software.outgoing_communications) == 1
+        assert retrieved_software.outgoing_communications[0].target_id == saved_database.id
+
+        # Retrieve database and verify incoming communications
+        retrieved_database = persistence.get_by_id(
+            DatabaseItem, str(saved_database.id)
+        )
+        assert len(retrieved_database.incoming_communications) == 1
+        assert retrieved_database.incoming_communications[0].source_id == saved_software.id
+
+        # Cleanup: delete items (should also clean up communications)
+        for item in persistence.get_all(SoftwareItem):
+            persistence.delete(item)
+        for item in persistence.get_all(DatabaseItem):
+            persistence.delete(item)
+
+        assert len(persistence.get_all(SoftwareItem)) == 0
+        assert len(persistence.get_all(DatabaseItem)) == 0
+        assert len(persistence.get_all(ConfigurationItemCommunication)) == 0
+
+        logger.info("test_communication_persistence completed successfully")
+
+    def test_delete_item_with_communications(self, persistence):
+        """Test that deleting an item also removes its communication links."""
+        logger.info("Starting test_delete_item_with_communications")
+
+        hardware = HardwareItem(
+            name="App Server",
+            hardware_type="server",
+            is_cloud=False,
+            hardware_vendor="Dell",
+        )
+        process = ProcessItem(name="ETL Pipeline")
+
+        saved_hw = persistence.save(hardware)
+        saved_proc = persistence.save(process)
+
+        comm = ConfigurationItemCommunication(
+            source_id=saved_proc.id,
+            target_id=saved_hw.id,
+            communication_type=CommunicationType.FILE_TRANSFER.value,
+            description="File output to server",
+        )
+        persistence.save(comm)
+
+        # Delete the process item — should clean up communication rows
+        persistence.delete(saved_proc)
+        assert len(persistence.get_all(ConfigurationItemCommunication)) == 0
+
+        # Clean up remaining
+        for item in persistence.get_all(HardwareItem):
+            persistence.delete(item)
+
+        assert len(persistence.get_all(HardwareItem)) == 0
+
+        logger.info("test_delete_item_with_communications completed successfully")
 
     def test_model_type_property_persistence(self, persistence):
         """Test saving and retrieving ModelTypeProperty instances."""

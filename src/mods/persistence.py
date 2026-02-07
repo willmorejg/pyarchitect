@@ -12,16 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import datetime as dt
-from typing import TypeVar
+from typing import Any, TypeVar
 
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlalchemy import select, text
+from sqlmodel import Session, SQLModel, create_engine
 
 from mods.logging_config import LoggingConfig
 from mods.models import ConfigurationItem
 
 logger = LoggingConfig().get_logger()
 
-T = TypeVar("T", bound=SQLModel)
+T = TypeVar("T")
 
 
 class Persistence:
@@ -45,11 +46,11 @@ class Persistence:
         """Create and return a new database session."""
         return Session(self.engine)
 
-    def save(self, model: T) -> T:
-        """Save a SQLModel instance to the database.
+    def save(self, model: Any) -> Any:
+        """Save a model instance to the database.
 
         Args:
-            model: The SQLModel instance to save.
+            model: The model instance to save.
 
         Returns:
             The saved model instance.
@@ -94,24 +95,76 @@ class Persistence:
         """
         with Session(self.engine) as session:
             statement = select(model_class)
-            result = list(session.exec(statement).all())
+            result = list(session.execute(statement).scalars().all())
             for instance in result:
                 session.expunge(instance)
             return result
 
-    def delete(self, model: SQLModel) -> None:
-        """Delete a SQLModel instance from the database.
+    def delete(self, model: Any) -> None:
+        """Delete a model instance from the database.
+
+        For joined table inheritance models (ConfigurationItem subclasses),
+        deletes child table row first, then parent row, to satisfy FK constraints.
 
         Args:
-            model: The SQLModel instance to delete.
+            model: The model instance to delete.
         """
-        with Session(self.engine) as session:
-            session.delete(model)
-            session.commit()
-            logger.info(f"Deleted model with id: {getattr(model, 'id', 'unknown')}")
+        model_id = getattr(model, "id", None)
+        if model_id is None:
+            return
 
-    def delete_by_id(self, model_class: type[SQLModel], model_id: str) -> None:
+        model_class = type(model)
+
+        # Delete communication links referencing this item first
+        if isinstance(model, ConfigurationItem):
+            with Session(self.engine) as session:
+                conn = session.connection()
+                conn.execute(
+                    text(
+                        "DELETE FROM configuration_item_communications"
+                        " WHERE source_id = :id OR target_id = :id"
+                    ),
+                    {"id": model_id},
+                )
+                session.commit()
+
+        with Session(self.engine) as session:
+            # For ConfigurationItem subclasses, delete child row first
+            if (
+                isinstance(model, ConfigurationItem)
+                and hasattr(model_class, "__tablename__")
+                and model_class.__tablename__ != "configuration_items"
+            ):
+                child_table = model_class.__tablename__
+                conn = session.connection()
+                conn.execute(
+                    text(f"DELETE FROM {child_table} WHERE id = :id"),
+                    {"id": model_id},
+                )
+                # DuckDB requires commit between child/parent deletes
+                session.commit()
+
+        # Delete parent row (or non-inheritance model)
+        with Session(self.engine) as session:
+            conn = session.connection()
+            if isinstance(model, ConfigurationItem):
+                conn.execute(
+                    text("DELETE FROM configuration_items WHERE id = :id"),
+                    {"id": model_id},
+                )
+                session.commit()
+            else:
+                instance = session.get(model_class, model_id)
+                if instance is not None:
+                    session.delete(instance)
+                    session.commit()
+        logger.info(f"Deleted model with id: {model_id}")
+
+    def delete_by_id(self, model_class: type, model_id: str) -> None:
         """Delete a model instance by its ID.
+
+        For joined table inheritance models (ConfigurationItem subclasses),
+        deletes child table row first, then parent row, to satisfy FK constraints.
 
         Args:
             model_class: The model class to query.
@@ -120,8 +173,47 @@ class Persistence:
         with Session(self.engine) as session:
             model = session.get(model_class, model_id)
             if model:
-                session.delete(model)
-                session.commit()
+                # Delete communication links referencing this item first
+                if isinstance(model, ConfigurationItem):
+                    conn = session.connection()
+                    conn.execute(
+                        text(
+                            "DELETE FROM configuration_item_communications"
+                            " WHERE source_id = :id OR target_id = :id"
+                        ),
+                        {"id": model_id},
+                    )
+                    session.commit()
+
+                # For ConfigurationItem subclasses, delete child row first
+                if (
+                    isinstance(model, ConfigurationItem)
+                    and hasattr(model_class, "__tablename__")
+                    and model_class.__tablename__ != "configuration_items"
+                ):
+                    with Session(self.engine) as session2:
+                        child_table = model_class.__tablename__
+                        conn2 = session2.connection()
+                        conn2.execute(
+                            text(f"DELETE FROM {child_table} WHERE id = :id"),
+                            {"id": model_id},
+                        )
+                        session2.commit()
+
+                    # Delete parent in new session
+                    with Session(self.engine) as session3:
+                        conn3 = session3.connection()
+                        conn3.execute(
+                            text("DELETE FROM configuration_items WHERE id = :id"),
+                            {"id": model_id},
+                        )
+                        session3.commit()
+                else:
+                    with Session(self.engine) as session2:
+                        instance = session2.get(model_class, model_id)
+                        if instance is not None:
+                            session2.delete(instance)
+                            session2.commit()
                 logger.info(f"Deleted model with id: {model_id}")
             else:
                 logger.warning(f"Model with id: {model_id} not found for deletion.")
