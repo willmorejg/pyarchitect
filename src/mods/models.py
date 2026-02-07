@@ -18,12 +18,13 @@ from enum import Enum
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from pydantic import model_validator
-from sqlalchemy import Boolean, Column, String
-from sqlalchemy.types import JSON, TypeDecorator
-from sqlmodel import Field, SQLModel
+from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.types import JSON
+from sqlmodel import Column, Field, SQLModel
 
 TIMEZONE = ZoneInfo("America/New_York")
+_CI_ID_FK = "configuration_items.id"
 
 
 class ModelType(str, Enum):
@@ -35,6 +36,14 @@ class ModelType(str, Enum):
     PROCESS = "process"
     PERSON = "person"
 
+class CommunicationType(str, Enum):
+    """Communication types for configuration items."""
+
+    API = "api"
+    MESSAGE_QUEUE = "message_queue"
+    FILE_TRANSFER = "file_transfer"
+    OTHER = "other"
+
 
 class PropertyModel(SQLModel):
     """A model representing a key-value property (no associated database table; a column value)."""
@@ -43,95 +52,119 @@ class PropertyModel(SQLModel):
     value: Any
 
 
-class PydanticListJSON(TypeDecorator):
-    """Custom type to serialize list of Pydantic models to JSON."""
+class _Base(DeclarativeBase):
+    """SQLAlchemy declarative base sharing SQLModel's metadata.
 
-    impl = JSON
-    cache_ok = True
+    This enables joined table inheritance for the ConfigurationItem hierarchy
+    while coexisting with SQLModel table classes (e.g., ModelTypeProperty).
+    """
 
-    @property
-    def python_type(self) -> type:
-        """Return the Python type object expected for values of this type."""
-        return list
-
-    def process_literal_param(self, value: list | None, dialect: Any) -> str:  # noqa: ARG002
-        """Process a literal parameter value for inline rendering in SQL.
-
-        Convert PropertyModel instances to dicts before storing.
-
-        Args:
-            value: The value to be processed.
-            dialect: The SQL dialect in use.
-
-        Returns:
-            The processed value as a JSON string.
-        """
-        if value is None:
-            return json.dumps(None)
-        processed = [
-            item.model_dump() if hasattr(item, "model_dump") else item for item in value
-        ]
-        return json.dumps(processed)
-
-    def process_bind_param(self, value: list | None, dialect: Any) -> list | None:
-        """Convert PropertyModel instances to dicts before storing.
-
-        Args:
-            value: The value to be processed.
-            dialect: The SQL dialect in use.
-
-        Returns:
-            The processed value.
-        """
-        if value is None:
-            return value
-        return [
-            item.model_dump() if hasattr(item, "model_dump") else item for item in value
-        ]
-
-    def process_result_value(self, value: list | None, dialect: Any) -> list | None:
-        """Return raw list from database (rehydration happens via model_validator).
-
-        Args:
-            value: The value retrieved from the database.
-            dialect: The SQL dialect in use.
-
-        Returns:
-            The raw value.
-        """
-        return value
+    metadata = SQLModel.metadata
 
 
-class ConfigurationItem(SQLModel):
-    """Base model representing a configuration item in the system."""
+class ConfigurationItem(_Base):
+    """Base model representing a configuration item in the system.
 
-    name: str
-    description: str | None = None
-    model_type: ModelType
-    revision: int = 1
-    is_active: bool = True
-    tags: list[str] = Field(default_factory=list, sa_type=JSON)
-    properties: list[PropertyModel] = Field(
-        default_factory=list, sa_type=PydanticListJSON
+    Uses joined table inheritance: shared columns live in the
+    ``configuration_items`` table, and each subclass stores only its
+    specific columns in a separate table linked by foreign key.
+    """
+
+    __tablename__ = "configuration_items"
+    __table_args__ = {"extend_existing": True}
+    __mapper_args__ = {
+        "polymorphic_on": "model_type",
+        "polymorphic_identity": None,
+    }
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    created: dt.datetime = Field(default_factory=lambda: dt.datetime.now(TIMEZONE))
-    created_by: str = "system"
-    last_modified: dt.datetime = Field(
-        default_factory=lambda: dt.datetime.now(TIMEZONE)
+    name: Mapped[str] = mapped_column(String)
+    description: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
     )
-    modified_by: str = "system"
+    model_type: Mapped[str] = mapped_column(String, nullable=False)
+    revision: Mapped[int] = mapped_column(default=1)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    properties: Mapped[list] = mapped_column(JSON, default=list)
+    created: Mapped[dt.datetime] = mapped_column(
+        default=lambda: dt.datetime.now(TIMEZONE)
+    )
+    created_by: Mapped[str] = mapped_column(String, default="system")
+    last_modified: Mapped[dt.datetime] = mapped_column(
+        default=lambda: dt.datetime.now(TIMEZONE)
+    )
+    modified_by: Mapped[str] = mapped_column(String, default="system")
 
-    @model_validator(mode="after")
-    def rehydrate_properties(self) -> "ConfigurationItem":
-        """Convert dict properties back to PropertyModel instances on load."""
-        if self.properties and len(self.properties) > 0:
-            first = self.properties[0]
-            if isinstance(first, dict):
-                self.properties = [
-                    PropertyModel(key=p["key"], value=p["value"])  # type: ignore[index]
-                    for p in self.properties
-                ]
-        return self
+    outgoing_communications: Mapped[list["ConfigurationItemCommunication"]] = relationship(
+        foreign_keys="ConfigurationItemCommunication.source_id",
+        lazy="selectin",
+    )
+    incoming_communications: Mapped[list["ConfigurationItemCommunication"]] = relationship(
+        foreign_keys="ConfigurationItemCommunication.target_id",
+        lazy="selectin",
+    )
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize with Python-level defaults.
+
+        SQLAlchemy's mapped_column defaults only apply at INSERT time.
+        This ensures defaults are available immediately on the Python object.
+        """
+        _defaults = {
+            "id": lambda: str(uuid.uuid4()),
+            "revision": lambda: 1,
+            "is_active": lambda: True,
+            "tags": list,
+            "properties": list,
+            "created": lambda: dt.datetime.now(TIMEZONE),
+            "created_by": lambda: "system",
+            "last_modified": lambda: dt.datetime.now(TIMEZONE),
+            "modified_by": lambda: "system",
+        }
+        for key, factory in _defaults.items():
+            if key not in kwargs:
+                kwargs[key] = factory()
+        super().__init__(**kwargs)
+
+    def add_communication(
+        self,
+        target: "ConfigurationItem",
+        communication_type: CommunicationType,
+        description: str | None = None,
+    ) -> "ConfigurationItemCommunication":
+        """Add a communication link from this item to a target item.
+
+        Args:
+            target: The target ConfigurationItem.
+            communication_type: The type of communication.
+            description: Optional description of the communication.
+
+        Returns:
+            The created ConfigurationItemCommunication instance.
+        """
+        comm = ConfigurationItemCommunication(
+            source_id=self.id,
+            target_id=target.id,
+            communication_type=communication_type.value
+            if isinstance(communication_type, CommunicationType)
+            else communication_type,
+            description=description,
+        )
+        self.outgoing_communications.append(comm)
+        return comm
+
+    def get_communications(self) -> list["ConfigurationItemCommunication"]:
+        """Get all communications (both incoming and outgoing) for this item.
+
+        Returns:
+            Combined list of incoming and outgoing communications.
+        """
+        return list(self.outgoing_communications) + list(
+            self.incoming_communications
+        )
 
     def add_property(self, key: str, value: Any) -> None:
         """Adds a property to the model.
@@ -140,7 +173,8 @@ class ConfigurationItem(SQLModel):
             key: The property key.
             value: The property value.
         """
-        self.properties.append(PropertyModel(key=key, value=value))
+        current = self.properties or []
+        self.properties = [*current, {"key": key, "value": value}]
 
     def get_property(self, key: str) -> Any | None:
         """Retrieves a property value by key.
@@ -151,12 +185,11 @@ class ConfigurationItem(SQLModel):
         Returns:
             The property value or None if not found.
         """
-        for prop in self.properties:
-            # Handle both PropertyModel instances and dicts (from DB load)
+        for prop in self.properties or []:
             if isinstance(prop, dict):
                 if prop.get("key") == key:
                     return prop.get("value")
-            elif prop.key == key:
+            elif hasattr(prop, "key") and prop.key == key:
                 return prop.value
         return None
 
@@ -169,6 +202,35 @@ class ConfigurationItem(SQLModel):
         """
         return TIMEZONE
 
+    def model_dump(self) -> dict[str, Any]:
+        """Return a dictionary representation of the model.
+
+        Returns:
+            Dictionary of all mapped column values, plus communications.
+        """
+        result: dict[str, Any] = {}
+        for col in self.__class__.__mapper__.columns:
+            value = getattr(self, col.key)
+            if isinstance(value, Enum):
+                value = value.value
+            result[col.key] = value
+        comms = self.get_communications()
+        if comms:
+            result["communications"] = [c.model_dump() for c in comms]
+        return result
+
+    def model_dump_json(self) -> str:
+        """Return a JSON string representation of the model.
+
+        Returns:
+            JSON string of the model.
+        """
+        data = self.model_dump()
+        for key, value in data.items():
+            if isinstance(value, dt.datetime):
+                data[key] = value.isoformat()
+        return json.dumps(data)
+
     def __str__(self) -> str:
         """Return the JSON representation of the model.
 
@@ -178,90 +240,116 @@ class ConfigurationItem(SQLModel):
         return self.model_dump_json()
 
 
-class HardwareItem(ConfigurationItem, table=True):
+class ConfigurationItemCommunication(_Base):
+    """Association table defining communication links between configuration items."""
+
+    __tablename__ = "configuration_item_communications"
+    __table_args__ = {"extend_existing": True}
+
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey(_CI_ID_FK), nullable=False
+    )
+    target_id: Mapped[str] = mapped_column(
+        ForeignKey(_CI_ID_FK), nullable=False
+    )
+    communication_type: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str | None] = mapped_column(
+        String, nullable=True, default=None
+    )
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize with Python-level defaults."""
+        if "id" not in kwargs:
+            kwargs["id"] = str(uuid.uuid4())
+        super().__init__(**kwargs)
+
+    def model_dump(self) -> dict[str, Any]:
+        """Return a dictionary representation of the communication.
+
+        Returns:
+            Dictionary of all mapped column values.
+        """
+        return {
+            "id": self.id,
+            "source_id": self.source_id,
+            "target_id": self.target_id,
+            "communication_type": self.communication_type,
+            "description": self.description,
+        }
+
+
+class HardwareItem(ConfigurationItem):
     """Model representing a hardware configuration item."""
 
-    __tablename__: str = "hardware_items"  # type: ignore[assignment]
+    __tablename__ = "hardware_items"
     __table_args__ = {"extend_existing": True}
+    __mapper_args__ = {"polymorphic_identity": ModelType.HARDWARE.value}
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), primary_key=True),
+    id: Mapped[str] = mapped_column(
+        ForeignKey(_CI_ID_FK), primary_key=True
     )
-    model_type: ModelType = Field(
-        default=ModelType.HARDWARE, sa_column=Column(String, nullable=False)
-    )
-    hardware_type: str = Field(sa_column=Column(String, nullable=False))
-    is_cloud: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
-    hardware_vendor: str = Field(sa_column=Column(String, nullable=False))
+    hardware_type: Mapped[str] = mapped_column(String)
+    is_cloud: Mapped[bool] = mapped_column(Boolean, default=False)
+    hardware_vendor: Mapped[str] = mapped_column(String)
 
 
-class SoftwareItem(ConfigurationItem, table=True):
+class SoftwareItem(ConfigurationItem):
     """Model representing a software configuration item."""
 
-    __tablename__: str = "software_items"  # type: ignore[assignment]
+    __tablename__ = "software_items"
     __table_args__ = {"extend_existing": True}
+    __mapper_args__ = {"polymorphic_identity": ModelType.SOFTWARE.value}
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), primary_key=True),
+    id: Mapped[str] = mapped_column(
+        ForeignKey(_CI_ID_FK), primary_key=True
     )
-    model_type: ModelType = Field(
-        default=ModelType.SOFTWARE, sa_column=Column(String, nullable=False)
-    )
-    software_type: str = Field(sa_column=Column(String, nullable=False))
-    is_cloud: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
-    is_internal: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
-    software_vendor: str = Field(sa_column=Column(String, nullable=False))
+    software_type: Mapped[str] = mapped_column(String)
+    is_cloud: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_internal: Mapped[bool] = mapped_column(Boolean, default=False)
+    software_vendor: Mapped[str] = mapped_column(String)
 
 
-class DatabaseItem(ConfigurationItem, table=True):
+class DatabaseItem(ConfigurationItem):
     """Model representing a database configuration item."""
 
-    __tablename__: str = "database_items"  # type: ignore[assignment]
+    __tablename__ = "database_items"
     __table_args__ = {"extend_existing": True}
+    __mapper_args__ = {"polymorphic_identity": ModelType.DATABASE.value}
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), primary_key=True),
+    id: Mapped[str] = mapped_column(
+        ForeignKey(_CI_ID_FK), primary_key=True
     )
-    model_type: ModelType = Field(
-        default=ModelType.DATABASE, sa_column=Column(String, nullable=False)
-    )
-    database_instance: str = Field(sa_column=Column(String, nullable=False))
-    database_name: str = Field(sa_column=Column(String, nullable=False))
-    database_schema: str = Field(sa_column=Column(String, nullable=False))
-    is_cloud: bool = Field(default=False, sa_column=Column(Boolean, nullable=False))
-    database_vendor: str = Field(sa_column=Column(String, nullable=False))
+    database_instance: Mapped[str] = mapped_column(String)
+    database_name: Mapped[str] = mapped_column(String)
+    database_schema: Mapped[str] = mapped_column(String)
+    is_cloud: Mapped[bool] = mapped_column(Boolean, default=False)
+    database_vendor: Mapped[str] = mapped_column(String)
 
 
-class ProcessItem(ConfigurationItem, table=True):
+class ProcessItem(ConfigurationItem):
     """Model representing a process configuration item."""
 
-    __tablename__: str = "process_items"  # type: ignore[assignment]
+    __tablename__ = "process_items"
     __table_args__ = {"extend_existing": True}
+    __mapper_args__ = {"polymorphic_identity": ModelType.PROCESS.value}
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), primary_key=True),
-    )
-    model_type: ModelType = Field(
-        default=ModelType.PROCESS, sa_column=Column(String, nullable=False)
+    id: Mapped[str] = mapped_column(
+        ForeignKey(_CI_ID_FK), primary_key=True
     )
 
 
-class PersonItem(ConfigurationItem, table=True):
+class PersonItem(ConfigurationItem):
     """Model representing a person configuration item."""
 
-    __tablename__: str = "person_items"  # type: ignore[assignment]
+    __tablename__ = "person_items"
     __table_args__ = {"extend_existing": True}
+    __mapper_args__ = {"polymorphic_identity": ModelType.PERSON.value}
 
-    id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        sa_column=Column(String(36), primary_key=True),
-    )
-    model_type: ModelType = Field(
-        default=ModelType.PERSON, sa_column=Column(String, nullable=False)
+    id: Mapped[str] = mapped_column(
+        ForeignKey(_CI_ID_FK), primary_key=True
     )
 
 

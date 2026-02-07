@@ -17,7 +17,9 @@ __version__ = "0.1.0"
 from .logging_config import LoggingConfig
 from .mappers import ModelToDataframeMapper
 from .models import (
+    CommunicationType,
     ConfigurationItem,
+    ConfigurationItemCommunication,
     DatabaseItem,
     HardwareItem,
     ModelType,
@@ -30,7 +32,9 @@ from .persistence import Persistence
 
 __all__ = [
     "ModelType",
+    "CommunicationType",
     "ConfigurationItem",
+    "ConfigurationItemCommunication",
     "ModelTypeProperty",
     "HardwareItem",
     "SoftwareItem",
